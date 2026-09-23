@@ -66,7 +66,8 @@ export interface WorkforceApiResponse {
   payrollByDepartment: PayrollDeptPoint[];
   payrollTrend: PayrollTrendPoint[];
   employmentTypeBreakdown: EmploymentTypePoint[];
-  recentCheckIns: CheckIn[];
+  /** ISO date of the most recent fully-posted attendance day, if any. */
+  latestPostedDate: string | null;
   recentPayrollRuns: PayrollRun[];
 }
 
@@ -196,62 +197,6 @@ function buildEmploymentTypeBreakdown(): EmploymentTypePoint[] {
   ];
 }
 
-function buildRecentCheckIns(): CheckIn[] {
-  const names = [
-    "Ahmed Raza",
-    "Ayesha Khan",
-    "Muhammad Bilal",
-    "Sana Fatima",
-    "Usman Tariq",
-    "Sadia Nawaz",
-    "Bilal Hussain",
-    "Rabia Yousaf",
-    "Imran Sheikh",
-    "Mehwish Iqbal",
-    "Kashif Mahmood",
-    "Nadia Parveen",
-  ];
-  const shifts = ["06:00 – 14:00", "14:00 – 22:00", "22:00 – 06:00"];
-  const statuses: AttendanceStatus[] = [
-    "on-time",
-    "on-time",
-    "on-time",
-    "late",
-    "on-time",
-    "absent",
-    "on-time",
-    "late",
-    "on-time",
-    "on-time",
-    "absent",
-    "late",
-  ];
-  return names.map((employeeName, i) => {
-    const status = statuses[i];
-    const minutesLate = status === "late" ? 8 + ((i * 7) % 34) : 0;
-    const shiftStart = shifts[i % shifts.length];
-    const startHour = parseInt(shiftStart.slice(0, 2), 10);
-    const checkInHour = startHour;
-    const checkInMin = status === "late" ? minutesLate : (i * 3) % 10;
-    const checkIn =
-      status === "absent"
-        ? "—"
-        : `${String(checkInHour).padStart(2, "0")}:${String(
-            checkInMin,
-          ).padStart(2, "0")}`;
-    return {
-      id: `chk-${i + 1}`,
-      employeeName,
-      department: DEPARTMENTS[i % DEPARTMENTS.length],
-      shift: shiftStart,
-      checkIn,
-      checkOut: status === "absent" ? null : "—",
-      status,
-      minutesLate,
-    };
-  });
-}
-
 function buildRecentPayrollRuns(): PayrollRun[] {
   return [
     {
@@ -312,6 +257,6 @@ export const mockWorkforceData: WorkforceApiResponse = {
   payrollByDepartment: buildPayrollByDepartment(),
   payrollTrend: buildPayrollTrend(),
   employmentTypeBreakdown: buildEmploymentTypeBreakdown(),
-  recentCheckIns: buildRecentCheckIns(),
+  latestPostedDate: isoDaysAgo(1),
   recentPayrollRuns: buildRecentPayrollRuns(),
 };

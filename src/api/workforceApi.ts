@@ -18,18 +18,14 @@ import {
 import {
   classifyEmploymentType,
   cleanDepartment,
-  formatClock,
   isoDaysAgo,
   lastTwelveMonths,
-  minutesSinceMidnight,
   monthKeyOf,
   monthStart,
   toNumber,
 } from "./frappeMappers";
 import type {
   AttendancePoint,
-  AttendanceStatus,
-  CheckIn,
   EmploymentTypePoint,
   Kpis,
   PayrollDeptPoint,
@@ -37,19 +33,6 @@ import type {
   PayrollTrendPoint,
   WorkforceApiResponse,
 } from "../data/mockData";
-
-interface AttendanceDetailRow {
-  name: string;
-  employee: string;
-  employee_name: string | null;
-  department: string | null;
-  attendance_date: string;
-  status: string | null;
-  late_entry: number | null;
-  in_time: string | null;
-  out_time: string | null;
-  shift: string | null;
-}
 
 interface SalarySlipPeriodRow {
   start_date: string;
@@ -72,14 +55,7 @@ interface SalarySlipEmployeeRow {
   start_date: string;
 }
 
-interface ShiftTypeRow {
-  name: string;
-  start_time: string | null;
-  end_time: string | null;
-}
-
 const DAILY_WINDOW = 30;
-const RECENT_CHECKINS = 12;
 const RECENT_RUNS = 5;
 
 export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
@@ -89,8 +65,6 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     totalEmployees,
     newHires7d,
     dailyAttendance,
-    recentAttendance,
-    shiftTypes,
     payrollPeriods,
     payrollCosts,
     cycleSlips,
@@ -106,42 +80,6 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     // One year of per-day/per-status counts. The daily, weekly and monthly
     // series plus the presence KPIs are all derived from this single query.
     optional("Attendance history", fetchDailyAttendance(yearAgo), [] as AttendanceDailyRow[]),
-
-    optional(
-      "Recent attendance",
-      getList<AttendanceDetailRow>("Attendance", {
-        fields: [
-          "name",
-          "employee",
-          "employee_name",
-          "department",
-          "attendance_date",
-          "status",
-          "late_entry",
-          "in_time",
-          "out_time",
-          "shift",
-        ],
-        // Holiday rows carry no check-in times, so they would fill the table
-        // with placeholder dashes.
-        filters: [
-          ["docstatus", "<", 2],
-          ["status", "!=", "Holiday"],
-        ],
-        orderBy: "attendance_date desc, modified desc",
-        limit: RECENT_CHECKINS,
-      }),
-      [] as AttendanceDetailRow[],
-    ),
-
-    optional(
-      "Shift types",
-      getList<ShiftTypeRow>("Shift Type", {
-        fields: ["name", "start_time", "end_time"],
-        limit: 0,
-      }),
-      [] as ShiftTypeRow[],
-    ),
 
     // This site runs two overlapping payroll cycles — semi-monthly (1–15,
     // 16–31) for daily-wage staff and monthly (1–31) for permanent staff — so
@@ -236,7 +174,8 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     payrollByDepartment: buildPayrollByDepartment(payrollCosts, payrollMonth),
     payrollTrend: buildPayrollTrend(payrollCosts),
     employmentTypeBreakdown: buildEmploymentTypeBreakdown(monthSlips, employeeTypes),
-    recentCheckIns: buildRecentCheckIns(recentAttendance, shiftTypes),
+    // The log page opens on this day; "today" is usually not posted yet.
+    latestPostedDate: lastPosted?.date ?? null,
     recentPayrollRuns: buildRecentPayrollRuns(payrollPeriods),
   };
 }
@@ -389,37 +328,6 @@ function buildEmploymentTypeBreakdown(
     { type: "Permanent", ...totals.Permanent },
     { type: "Daily Wage", ...totals["Daily Wage"] },
   ];
-}
-
-function buildRecentCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]): CheckIn[] {
-  const shiftStart = new Map(shifts.map((s) => [s.name, minutesSinceMidnight(s.start_time)]));
-  const shiftLabel = new Map(
-    shifts.map((s) => [s.name, `${formatClock(s.start_time)} – ${formatClock(s.end_time)}`]),
-  );
-
-  return rows.map((row) => {
-    const band = attendanceBand(row.status, row.late_entry);
-    const status: AttendanceStatus =
-      band === "absent" ? "absent" : band === "late" ? "late" : "on-time";
-
-    const start = row.shift ? shiftStart.get(row.shift) ?? null : null;
-    const inMinutes = minutesSinceMidnight(row.in_time);
-    const minutesLate =
-      status === "late" && start !== null && inMinutes !== null
-        ? Math.max(0, inMinutes - start)
-        : 0;
-
-    return {
-      id: row.name,
-      employeeName: row.employee_name?.trim() || row.employee,
-      department: cleanDepartment(row.department),
-      shift: (row.shift && shiftLabel.get(row.shift)) || row.shift || "—",
-      checkIn: status === "absent" ? "—" : formatClock(row.in_time),
-      checkOut: status === "absent" ? null : formatClock(row.out_time),
-      status,
-      minutesLate,
-    };
-  });
 }
 
 function buildRecentPayrollRuns(rows: SalarySlipPeriodRow[]): PayrollRun[] {

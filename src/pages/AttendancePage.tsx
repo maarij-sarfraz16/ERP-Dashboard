@@ -4,7 +4,7 @@ import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
 import { RangeToggle, type AttendanceRange } from "../components/attendance/RangeToggle";
-import { CheckInTable } from "../components/attendance/CheckInTable";
+import { AttendanceLog } from "../components/attendance/AttendanceLog";
 import { toChartSeries } from "../api/attendanceCommon";
 
 export function AttendancePage() {
@@ -25,9 +25,6 @@ export function AttendancePage() {
     weekly: toChartSeries(data.attendanceWeekly),
     monthly: toChartSeries(data.attendanceMonthly),
   };
-
-  const lateCount = data.recentCheckIns.filter((c) => c.status === "late").length;
-  const absentCount = data.recentCheckIns.filter((c) => c.status === "absent").length;
 
   return (
     <>
@@ -60,19 +57,8 @@ export function AttendancePage() {
         </div>
       </div>
 
-      <SectionHeader index="02" title="Recent check-ins" />
-      <div className="card load-in load-in-2">
-        <div className="chart-card-head">
-          <div>
-            <div className="chart-title">Today's shift log</div>
-            <div className="chart-sub">
-              {lateCount} late arrival{lateCount === 1 ? "" : "s"} · {absentCount} absence
-              {absentCount === 1 ? "" : "s"} flagged below
-            </div>
-          </div>
-        </div>
-        <CheckInTable rows={data.recentCheckIns} />
-      </div>
+      <SectionHeader index="02" title="Daily shift log" />
+      <AttendanceLog initialDate={data.latestPostedDate} />
     </>
   );
 }

@@ -53,8 +53,6 @@ interface RawAttendance {
   late_entry: number | null;
 }
 
-/** How many employees to pull into the directory table. */
-const DIRECTORY_LIMIT = 500;
 const ATTENDANCE_WINDOW_DAYS = 14;
 
 function mapStatus(raw: string | null): EmployeeStatus {
@@ -97,61 +95,28 @@ function attendanceWindow(): string[] {
 }
 
 /**
- * Per-employee attendance for the sparkline window, scoped to the employees
- * actually on screen.
- *
- * Unscoped this pulls ~29k rows / 2.4MB for the whole plant. Scoped to 500 ids
- * it is 6k rows, but the filter has to be chunked: 500 ids url-encode to an
- * ~8KB query string, which is close enough to common proxy URI limits to risk
- * an intermittent 414.
+ * Plant-wide attendance for the sparkline window. The directory lists every
+ * employee, so there is nothing to scope this to — one date-bounded request
+ * (~29k rows / 2.4MB, well under a second on the LAN) beats chunking ~2.3k ids
+ * into `in` filters to dodge URI length limits.
  */
-const ID_CHUNK_SIZE = 150;
-
-async function fetchAttendanceWindow(
-  employeeIds: string[],
-  windowStart: string,
-): Promise<RawAttendance[]> {
-  const chunks: string[][] = [];
-  for (let i = 0; i < employeeIds.length; i += ID_CHUNK_SIZE) {
-    chunks.push(employeeIds.slice(i, i + ID_CHUNK_SIZE));
-  }
-
-  const results = await Promise.all(
-    chunks.map((ids) =>
-      getList<RawAttendance>("Attendance", {
-        fields: ["employee", "attendance_date", "status", "late_entry"],
-        filters: [
-          ["attendance_date", ">=", windowStart],
-          ["docstatus", "<", 2],
-          ["employee", "in", ids],
-        ],
-        limit: 0,
-      }),
-    ),
-  );
-  return results.flat();
+function fetchAttendanceWindow(windowStart: string): Promise<RawAttendance[]> {
+  return getList<RawAttendance>("Attendance", {
+    fields: ["employee", "attendance_date", "status", "late_entry"],
+    filters: [
+      ["attendance_date", ">=", windowStart],
+      ["docstatus", "<", 2],
+    ],
+    limit: 0,
+  });
 }
 
 export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
   const windowStart = isoDaysAgo(ATTENDANCE_WINDOW_DAYS - 1);
   const twelveMonthsAgo = isoDaysAgo(365);
 
-  // The Employee read is required — if it fails there is no dashboard to draw.
-  const rawEmployees = await getList<RawEmployee>("Employee", {
-    fields: [
-      "name",
-      "employee_name",
-      "designation",
-      "department",
-      "employment_type",
-      "date_of_joining",
-      "status",
-    ],
-    orderBy: "date_of_joining desc",
-    limit: DIRECTORY_LIMIT,
-  });
-
   const [
+    rawEmployees,
     totalActive,
     newHiresLast7d,
     newHiresThisQuarter,
@@ -161,6 +126,22 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     deptCounts,
     typeCounts,
   ] = await Promise.all([
+      // The Employee read is required (not `optional`) — if it fails there is
+      // no dashboard to draw. Fetched unpaged so the directory's department
+      // filter agrees with the composition bar, which counts the whole roster.
+      getList<RawEmployee>("Employee", {
+        fields: [
+          "name",
+          "employee_name",
+          "designation",
+          "department",
+          "employment_type",
+          "date_of_joining",
+          "status",
+        ],
+        orderBy: "date_of_joining desc",
+        limit: 0,
+      }),
       optional("Employee count", getCount("Employee", [["status", "=", "Active"]]), 0),
       optional("New hires (7d)", getCount("Employee", [["date_of_joining", ">=", isoDaysAgo(7)]]), 0),
       optional(
@@ -184,17 +165,9 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
         }),
         [] as { date_of_joining: string | null }[],
       ),
-      optional(
-        "Attendance (14d)",
-        fetchAttendanceWindow(
-          rawEmployees.map((e) => e.name),
-          windowStart,
-        ),
-        [] as RawAttendance[],
-      ),
-      // Composition is counted across the whole active roster, not just the
-      // 500 employees in the directory table — otherwise the charts describe
-      // the most recent hires rather than the plant.
+      optional("Attendance (14d)", fetchAttendanceWindow(windowStart), [] as RawAttendance[]),
+      // Composition is counted server-side over the active roster so the bar
+      // stays correct even if the directory read above partially fails.
       optional(
         "Headcount by department",
         getList<RawGroupCount<"department">>("Employee", {
