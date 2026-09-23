@@ -2,10 +2,10 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { createApiMiddleware } from './server/api.mjs'
-
+import { loadServerEnv } from './server/env.mjs'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+    const env = { ...loadEnv(mode, process.cwd(), ''), ...loadServerEnv() }
 
   // Sign-in, sign-out and the session-gated relay to Frappe, mounted inside
   // the dev server so development runs on one origin and one port, exactly as
