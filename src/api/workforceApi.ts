@@ -8,7 +8,6 @@
 
 import { getCount, getList, optional } from "./frappeClient";
 import {
-  attendanceBand,
   fetchDailyAttendance,
   foldByDate,
   latestCompleteDay,

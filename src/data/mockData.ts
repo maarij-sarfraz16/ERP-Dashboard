@@ -71,17 +71,6 @@ export interface WorkforceApiResponse {
   recentPayrollRuns: PayrollRun[];
 }
 
-const DEPARTMENTS = [
-  "Spinning",
-  "Weaving",
-  "Dyeing",
-  "Finishing",
-  "Quality Control",
-  "Warehouse",
-  "Maintenance",
-  "Administration",
-];
-
 function isoDaysAgo(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
