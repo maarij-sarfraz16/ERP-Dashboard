@@ -77,6 +77,12 @@ input {
   height: 100vh;
 }
 
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .brand {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useCallback } from "react";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ConnectionError } from "./components/common/ConnectionError";
 import { useConnectionState } from "./api/connectionStatus";
@@ -14,16 +15,34 @@ import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
   const { user, signIn, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  // Signing out from, say, /payroll leaves that path in the address bar, so the
+  // next sign-in would land straight back there. Every session starts on the
+  // overview instead.
+  const handleSignIn = useCallback(
+    async (username: string, password: string) => {
+      const result = await signIn(username, password);
+      if (result.ok) navigate("/overview", { replace: true });
+      return result;
+    },
+    [signIn, navigate],
+  );
+
+  const handleSignOut = useCallback(() => {
+    void signOut();
+    navigate("/overview", { replace: true });
+  }, [signOut, navigate]);
 
   // Pages render their own loading state; when a fetch fails against the
   // Frappe backend the shared connection store flips and the whole shell
   // swaps to one explanatory error screen instead of a stuck spinner.
   const { ok } = useConnectionState();
 
-  if (!user) return <LoginPage onSignIn={signIn} />;
+  if (!user) return <LoginPage onSignIn={handleSignIn} />;
 
   return (
-    <AppShell user={user} onSignOut={signOut}>
+    <AppShell user={user.fullName} onSignOut={handleSignOut}>
       {ok ? (
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />

@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
+import { AtsLogo } from "../common/AtsLogo";
 
 const NAV_ITEMS = [
   { to: "/overview", index: "01", label: "Overview" },
@@ -20,9 +21,12 @@ export function Sidebar({ user, onSignOut }: Props) {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark">ATS Synthetic</span>
-        <span className="brand-sub">HRMS DASHBOARD</span>
+      <div className="sidebar-brand">
+        <AtsLogo size={26} />
+        <div className="brand">
+          <span className="brand-mark">ATS Synthetic</span>
+          <span className="brand-sub">HRMS DASHBOARD</span>
+        </div>
       </div>
 
       <nav className="nav-group">

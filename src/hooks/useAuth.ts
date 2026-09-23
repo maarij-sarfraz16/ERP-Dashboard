@@ -1,21 +1,22 @@
 import { useCallback, useState } from "react";
-import { clearSession, readSession, verifyCredentials, writeSession } from "../auth/auth";
+import { readSession, signInUser, signOutUser, type AuthUser, type SignInResult } from "../auth/auth";
 
 export function useAuth() {
-  const [user, setUser] = useState<string | null>(readSession);
+  // Restored from `sessionStorage` on first render, so a page refresh inside a
+  // signed-in tab does not bounce back to the login screen.
+  const [user, setUser] = useState<AuthUser | null>(readSession);
 
-  const signIn = useCallback(async (username: string, password: string): Promise<boolean> => {
-    const ok = await verifyCredentials(username, password);
-    if (ok) {
-      writeSession();
-      setUser(readSession());
-    }
-    return ok;
+  const signIn = useCallback(async (username: string, password: string): Promise<SignInResult> => {
+    const result = await signInUser(username, password);
+    if (result.ok) setUser(result.user);
+    return result;
   }, []);
 
-  const signOut = useCallback(() => {
-    clearSession();
+  const signOut = useCallback(async () => {
+    // Clear the UI first: the Frappe logout call is best-effort and must never
+    // leave the person staring at a dashboard they just signed out of.
     setUser(null);
+    await signOutUser();
   }, []);
 
   return { user, signIn, signOut };
