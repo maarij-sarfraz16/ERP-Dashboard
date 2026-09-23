@@ -5,7 +5,7 @@ import "../styles/loans.css";
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import type { LoanSummaryCard } from "../data/loanData";
 import { useLoanReport } from "../hooks/useLoanReport";
-import { cleanDepartment } from "../api/frappeMappers";
+import { cleanDepartment, compareEmployeeId } from "../api/frappeMappers";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { Segmented } from "../components/payroll/Segmented";
@@ -111,8 +111,14 @@ export function LoansPage() {
     });
   }, [records, query, status, department, source, loanType, empStatus, fromDate, toDate]);
 
+  // No column chosen → ascending by employee id, like every list in the app.
   const sorted = useMemo(
-    () => (sort ? [...filtered].sort((a, b) => compareLoans(a, b, sort.key) * sort.dir) : filtered),
+    () =>
+      [...filtered].sort((a, b) =>
+        sort
+          ? compareLoans(a, b, sort.key) * sort.dir || compareEmployeeId(a.employee, b.employee)
+          : compareEmployeeId(a.employee, b.employee),
+      ),
     [filtered, sort],
   );
 

@@ -42,6 +42,8 @@ export interface HeadcountEmployee {
   dateOfJoining: string;
   relievingDate: string;
   dateOfBirth: string;
+  /** Frappe Select, e.g. `A+`, `O-`; `""` when not recorded. */
+  bloodGroup: string;
   branch: string;
 }
 

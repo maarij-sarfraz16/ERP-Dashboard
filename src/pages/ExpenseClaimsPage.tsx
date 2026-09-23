@@ -8,7 +8,7 @@ import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import type { ClaimBeneficiary, ExpenseClaimRecord } from "../data/expenseClaimData";
 import { CLAIM_BENEFICIARIES } from "../data/expenseClaimData";
 import { useExpenseClaims } from "../hooks/useExpenseClaims";
-import { cleanDepartment } from "../api/frappeMappers";
+import { cleanDepartment, compareEmployeeId } from "../api/frappeMappers";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { Segmented } from "../components/payroll/Segmented";
@@ -187,8 +187,14 @@ export function ExpenseClaimsPage() {
     });
   }, [records, query, stage, expenseType, department, billMonth, payment, beneficiary, empStatus, amountBand, fromDate, toDate]);
 
+  // No column chosen → ascending by employee id, like every list in the app.
   const sorted = useMemo(
-    () => (sort ? [...filtered].sort((a, b) => compareClaims(a, b, sort.key) * sort.dir) : filtered),
+    () =>
+      [...filtered].sort((a, b) =>
+        sort
+          ? compareClaims(a, b, sort.key) * sort.dir || compareEmployeeId(a.employee, b.employee)
+          : compareEmployeeId(a.employee, b.employee),
+      ),
     [filtered, sort],
   );
 

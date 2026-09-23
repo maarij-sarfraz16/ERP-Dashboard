@@ -51,6 +51,7 @@ interface RawEmployee {
   reason_for_leaving: string | null;
   relieving_date: string | null;
   date_of_birth: string | null;
+  blood_group: string | null;
   branch: string | null;
 }
 
@@ -121,6 +122,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
           "reason_for_leaving",
           "relieving_date",
           "date_of_birth",
+          "blood_group",
           "branch",
         ],
         orderBy: "date_of_joining desc",
@@ -208,6 +210,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     dateOfJoining: clean(raw.date_of_joining),
     relievingDate: clean(raw.relieving_date),
     dateOfBirth: clean(raw.date_of_birth),
+    bloodGroup: clean(raw.blood_group),
     branch: clean(raw.branch),
   }));
 

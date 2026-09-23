@@ -1,12 +1,23 @@
 import "../../styles/headcount.css";
 import { useMemo, useState } from "react";
 import type { HeadcountEmployee } from "../../data/employeeData";
-import { cleanDepartment, isoDaysAgo, today } from "../../api/frappeMappers";
+import { cleanDepartment, compareEmployeeId, isoDaysAgo, today } from "../../api/frappeMappers";
 import { SplitMeter } from "./SplitMeter";
 import { RankedBars } from "./RankedBars";
 import { AttendanceRing } from "./AttendanceRing";
 import { PeopleList } from "./PeopleList";
-import { bankBreakdown, countBy, fmtDate, fmtInt, labelOf, NO_SALARY_MODE, yearsBetween } from "./hcShared";
+import {
+  AGE_BANDS,
+  bankBreakdown,
+  countBy,
+  countByBand,
+  fmtDate,
+  fmtInt,
+  labelOf,
+  NO_SALARY_MODE,
+  SERVICE_BANDS,
+  yearsBetween,
+} from "./hcShared";
 
 /** `null` = "All". A string (possibly `""` for blank) = that exact value. */
 type Filter = string | null;
@@ -141,8 +152,9 @@ export function WorkforceSnapshot({
     // which is why its Cash/Bank totals run higher than these.)
     const onPayroll = filtered.filter((e) => e.status === "Active");
 
-    // Age and length of service are only meaningful for people still on the
-    // roster, so both senior cards count Active employees as of today.
+    // Age, length of service and branch placement are only meaningful for
+    // people still on the roster, so the senior cards and the branch
+    // headcount count Active employees as of today.
     const withAge = onPayroll
       .map((e) => ({ e, years: yearsBetween(e.dateOfBirth, to) }))
       .filter((r): r is { e: HeadcountEmployee; years: number } => r.years !== null);
@@ -150,24 +162,27 @@ export function WorkforceSnapshot({
       .map((e) => ({ e, years: yearsBetween(e.dateOfJoining, to) }))
       .filter((r): r is { e: HeadcountEmployee; years: number } => r.years !== null);
 
+    // Every people list is ordered by employee id; the date/years each row
+    // shows still say when they joined, left, or how long they have served.
+    const byId = (a: HeadcountEmployee, b: HeadcountEmployee) => compareEmployeeId(a.id, b.id);
+
     return {
       status: countBy(filtered, (e) => e.status),
       salaryMode: countBy(onPayroll, (e) => e.salaryMode, (v) => v || NO_SALARY_MODE),
       bank: bankBreakdown(onPayroll),
       gender: countBy(filtered, (e) => e.gender),
-      branch: countBy(filtered, (e) => e.branch),
-      seniorByAge: withAge.filter((r) => r.years >= SENIOR_AGE).sort((a, b) => b.years - a.years),
+      bloodGroup: countBy(filtered, (e) => e.bloodGroup),
+      ageGroup: countByBand(onPayroll, (e) => e.dateOfBirth, AGE_BANDS, to),
+      serviceYears: countByBand(onPayroll, (e) => e.dateOfJoining, SERVICE_BANDS, to),
+      branch: countBy(onPayroll, (e) => e.branch),
+      seniorByAge: withAge.filter((r) => r.years >= SENIOR_AGE).sort((a, b) => byId(a.e, b.e)),
       seniorByService: withService
         .filter((r) => r.years >= LONG_SERVICE_YEARS)
-        .sort((a, b) => b.years - a.years),
+        .sort((a, b) => byId(a.e, b.e)),
       attendance: attendanceRows,
       unmarked,
-      joined: filtered
-        .filter((e) => inWindow(e.dateOfJoining, from, to))
-        .sort((a, b) => b.dateOfJoining.localeCompare(a.dateOfJoining)),
-      left: filtered
-        .filter((e) => inWindow(e.relievingDate, from, to))
-        .sort((a, b) => b.relievingDate.localeCompare(a.relievingDate)),
+      joined: filtered.filter((e) => inWindow(e.dateOfJoining, from, to)).sort(byId),
+      left: filtered.filter((e) => inWindow(e.relievingDate, from, to)).sort(byId),
     };
   }, [filtered, attendanceByEmployee, windowDays]);
 
@@ -347,10 +362,35 @@ export function WorkforceSnapshot({
 
         <section className="hc-card hc-span-2 load-in load-in-5">
           <header>
-            <h2>Branch Wise Head Count ({statusLabel})</h2>
+            <h2>Branch Wise Head Count (Active)</h2>
             <span className="hc-tag">Branch</span>
           </header>
           <RankedBars rows={view.branch} initial={view.branch.length} color="var(--hc-plum)" />
+        </section>
+
+        {/* ── Blood group / Age group / Years of service ───────────────── */}
+        <section className="hc-card hc-span-2 load-in load-in-6">
+          <header>
+            <h2>Blood Group Wise Head Count ({statusLabel})</h2>
+            <span className="hc-tag">Blood group</span>
+          </header>
+          <RankedBars rows={view.bloodGroup} initial={view.bloodGroup.length} color="var(--hc-red)" />
+        </section>
+
+        <section className="hc-card hc-span-2 load-in load-in-6">
+          <header>
+            <h2>Age Group Wise Head Count (Active)</h2>
+            <span className="hc-tag">Age</span>
+          </header>
+          <RankedBars rows={view.ageGroup} initial={view.ageGroup.length} color="var(--hc-gold)" />
+        </section>
+
+        <section className="hc-card hc-span-2 load-in load-in-6">
+          <header>
+            <h2>Service Years Wise Head Count (Active)</h2>
+            <span className="hc-tag">Service</span>
+          </header>
+          <RankedBars rows={view.serviceYears} initial={view.serviceYears.length} color="var(--hc-green)" />
         </section>
       </div>
     </div>

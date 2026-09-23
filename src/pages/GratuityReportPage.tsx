@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { GratuityRecord } from "../data/employeeData";
 import { useGratuityReport } from "../hooks/useGratuityReport";
-import { cleanDepartment } from "../api/frappeMappers";
+import { cleanDepartment, compareEmployeeId } from "../api/frappeMappers";
 import { PageHead } from "../components/common/PageHead";
 
 type SortKey = "employeeId" | "employeeName" | "department" | "total" | "consumed" | "remaining" | "consumedPct";
@@ -39,7 +39,7 @@ export function GratuityReportPage() {
   const { report, loading } = useGratuityReport();
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
-  // null keeps the report's own row order (grouped by department).
+  // null orders by employee id, like every list in the app.
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
 
   const records = report?.records;
@@ -56,7 +56,11 @@ export function GratuityReportPage() {
       if (q && !r.employeeName.toLowerCase().includes(q) && !r.employeeId.toLowerCase().includes(q)) return false;
       return true;
     });
-    return sort ? [...filtered].sort((a, b) => compare(a, b, sort.key) * sort.dir) : filtered;
+    return [...filtered].sort((a, b) =>
+      sort
+        ? compare(a, b, sort.key) * sort.dir || compareEmployeeId(a.employeeId, b.employeeId)
+        : compareEmployeeId(a.employeeId, b.employeeId),
+    );
   }, [records, query, department, sort]);
 
   const shownTotals = useMemo(() => {
@@ -66,7 +70,7 @@ export function GratuityReportPage() {
     return { total, consumed, remaining, pct: total > 0 ? (consumed / total) * 100 : 0 };
   }, [rows]);
 
-  // Click cycles: first direction (largest first for amounts) → reversed → report order.
+  // Click cycles: first direction (largest first for amounts) → reversed → employee id order.
   function toggleSort(key: SortKey, numeric: boolean) {
     const first = numeric ? -1 : 1;
     setSort((s) => {

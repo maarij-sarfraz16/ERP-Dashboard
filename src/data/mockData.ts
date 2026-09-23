@@ -101,6 +101,8 @@ export interface EmploymentTypePoint {
 
 export interface CheckIn {
   id: string;
+  /** The Employee record id, e.g. `ATS-0042`. */
+  employeeId: string;
   employeeName: string;
   department: string;
   shift: string;

@@ -67,6 +67,56 @@ export function bankBreakdown(employees: HeadcountEmployee[]): CountRow[] {
     .sort((a, b) => (a.key ? 0 : 1) - (b.key ? 0 : 1) || b.count - a.count);
 }
 
+/** One ordinal band, e.g. ages 25–34. `max` is inclusive; omit it for the open top band. */
+export interface YearBand {
+  label: string;
+  min: number;
+  max?: number;
+}
+
+export const AGE_BANDS: YearBand[] = [
+  { label: "Under 25", min: 0, max: 24 },
+  { label: "25 – 34", min: 25, max: 34 },
+  { label: "35 – 44", min: 35, max: 44 },
+  { label: "45 – 54", min: 45, max: 54 },
+  { label: "55 – 59", min: 55, max: 59 },
+  { label: "60 and over", min: 60 },
+];
+
+export const SERVICE_BANDS: YearBand[] = [
+  { label: "Under 1 year", min: 0, max: 0 },
+  { label: "1 – 2 years", min: 1, max: 2 },
+  { label: "3 – 5 years", min: 3, max: 5 },
+  { label: "6 – 10 years", min: 6, max: 10 },
+  { label: "11 – 20 years", min: 11, max: 20 },
+  { label: "Over 20 years", min: 21 },
+];
+
+/**
+ * Headcount per band, in band order (not by size — the axis is ordinal).
+ * Employees whose date is blank or invalid land in a final "Not set" row so
+ * the rows still add up to the headcount; empty bands are kept so the chart
+ * shape is comparable across filters.
+ */
+export function countByBand(
+  employees: HeadcountEmployee[],
+  dateOf: (e: HeadcountEmployee) => string,
+  bands: YearBand[],
+  asOf: string,
+): CountRow[] {
+  const counts = new Array<number>(bands.length).fill(0);
+  let notSet = 0;
+  for (const e of employees) {
+    const years = yearsBetween(dateOf(e), asOf);
+    const i = years === null ? -1 : bands.findIndex((b) => years >= b.min && (b.max === undefined || years <= b.max));
+    if (i < 0) notSet += 1;
+    else counts[i] += 1;
+  }
+  const rows = bands.map((b, i) => ({ key: b.label, label: b.label, count: counts[i] }));
+  if (notSet > 0) rows.push({ key: "", label: NOT_SET, count: notSet });
+  return rows;
+}
+
 export function fmtInt(n: number): string {
   return n.toLocaleString("en-US");
 }

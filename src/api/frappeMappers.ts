@@ -33,6 +33,14 @@ export function classifyPayrollCycle(frequency: string | null | undefined): Empl
   return /bimonthly|fortnight|week|daily/i.test(frequency ?? "") ? "Daily Wage" : "Permanent";
 }
 
+/**
+ * Ascending by employee number, the order every list in the app uses;
+ * `numeric` keeps "ATS-999" before "ATS-1001".
+ */
+export function compareEmployeeId(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
 export function initialsOf(name: string): string {
   return name
     .split(/\s+/)

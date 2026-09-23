@@ -17,7 +17,7 @@ function Avatar({ person }: { person: HeadcountEmployee }) {
   );
 }
 
-/** Employees who joined / left inside the window, newest first. */
+/** Employees who joined / left inside the window, ordered by employee id. */
 export function PeopleList({
   people,
   dateOf,

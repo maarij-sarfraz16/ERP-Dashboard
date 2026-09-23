@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { AttendanceStatus, CheckIn } from "../../data/mockData";
 import { useAttendanceLog } from "../../hooks/useAttendanceLog";
 import { AttendanceStatusBadge } from "../common/StatusBadge";
-import { isoDaysAgo, today } from "../../api/frappeMappers";
+import { compareEmployeeId, isoDaysAgo, today } from "../../api/frappeMappers";
 
 type StatusFilter = AttendanceStatus | "all";
-type SortKey = "name" | "present" | "status" | "check-in";
+type SortKey = "id" | "name" | "present" | "status" | "check-in";
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -59,7 +59,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [department, setDepartment] = useState("all");
   const [shift, setShift] = useState("all");
-  const [sort, setSort] = useState<SortKey>("name");
+  const [sort, setSort] = useState<SortKey>("id");
   const [page, setPage] = useState(0);
 
   const rows: CheckIn[] = log?.rows ?? [];
@@ -80,7 +80,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
     return rows.filter((r) => {
       if (department !== "all" && r.department !== department) return false;
       if (shift !== "all" && r.shift !== shift) return false;
-      if (q && !r.employeeName.toLowerCase().includes(q)) return false;
+      if (q && !r.employeeName.toLowerCase().includes(q) && !r.employeeId.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [rows, query, department, shift]);
@@ -111,23 +111,24 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
           ? scoped.filter((r) => r.status === "late" || r.lateEntry)
           : scoped.filter((r) => r.status === status);
     const sorted = [...list];
+    // Every order falls back to employee id, so ties are stable across days.
+    const byId = (a: CheckIn, b: CheckIn) => compareEmployeeId(a.employeeId, b.employeeId);
     switch (sort) {
+      case "id":
+        sorted.sort(byId);
+        break;
       case "name":
-        sorted.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+        sorted.sort((a, b) => a.employeeName.localeCompare(b.employeeName) || byId(a, b));
         break;
       case "present":
-        sorted.sort(
-          (a, b) =>
-            PRESENT_RANK[a.status] - PRESENT_RANK[b.status] ||
-            a.employeeName.localeCompare(b.employeeName),
-        );
+        sorted.sort((a, b) => PRESENT_RANK[a.status] - PRESENT_RANK[b.status] || byId(a, b));
         break;
       case "status":
         sorted.sort(
           (a, b) =>
             STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
             b.minutesLate - a.minutesLate ||
-            a.employeeName.localeCompare(b.employeeName),
+            byId(a, b),
         );
         break;
       case "check-in":
@@ -135,7 +136,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
         sorted.sort((a, b) => {
           if (a.checkIn === "—" && b.checkIn !== "—") return 1;
           if (b.checkIn === "—" && a.checkIn !== "—") return -1;
-          return a.checkIn.localeCompare(b.checkIn) || a.employeeName.localeCompare(b.employeeName);
+          return a.checkIn.localeCompare(b.checkIn) || byId(a, b);
         });
         break;
     }
@@ -257,6 +258,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
           onChange={(e) => setSort(e.target.value as SortKey)}
           aria-label="Sort by"
         >
+          <option value="id">Sort: employee ID</option>
           <option value="name">Sort: name</option>
           <option value="present">Sort: present first</option>
           <option value="status">Sort: needs attention</option>
@@ -288,6 +290,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
         <table className="data-table">
           <thead>
             <tr>
+              <th>Employee ID</th>
               <th>Employee</th>
               <th>Department</th>
               <th>Shift</th>
@@ -302,6 +305,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
                 row.status === "absent" ? "row-flag" : row.status === "late" ? "row-warn" : "";
               return (
                 <tr key={row.id} className={rowClass}>
+                  <td className="cell-mono">{row.employeeId}</td>
                   <td>{row.employeeName}</td>
                   <td>{row.department}</td>
                   <td className="cell-mono">{row.shift}</td>
@@ -322,7 +326,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
             })}
             {!loading && pageRows.length === 0 && (
               <tr>
-                <td colSpan={6} className="att-empty">
+                <td colSpan={7} className="att-empty">
                   {rows.length === 0
                     ? "Nothing posted for this date — try the previous day."
                     : "No one matches those filters."}

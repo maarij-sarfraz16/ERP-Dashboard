@@ -72,7 +72,7 @@ export async function fetchAttendanceLog(date: string): Promise<AttendanceLog> {
         ["attendance_date", "=", date],
         ["docstatus", "=", 1],
       ],
-      orderBy: "employee_name asc",
+      orderBy: "employee asc",
       limit: 0,
     }),
     fetchShiftTypes(),
@@ -109,6 +109,7 @@ export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]):
 
     return {
       id: row.name,
+      employeeId: row.employee,
       employeeName: row.employee_name?.trim() || row.employee,
       department: cleanDepartment(row.department),
       shift: (row.shift && shiftLabel.get(row.shift)) || row.shift || "—",

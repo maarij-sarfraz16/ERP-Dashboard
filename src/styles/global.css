@@ -772,6 +772,9 @@ input {
   .load-in-5 {
     animation-delay: 280ms;
   }
+  .load-in-6 {
+    animation-delay: 340ms;
+  }
 }
 
 @keyframes load-in {
