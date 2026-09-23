@@ -42,7 +42,7 @@ export function OverviewPage() {
   if (loading || employeeLoading || !data || !employeeData) {
     return (
       <>
-        <PageHead index="01 / 04" title="Overview" subtitle="Summary" />
+        <PageHead title="Overview" subtitle="Summary" />
         <PageLoader message="Loading floor data…" />
       </>
     );
@@ -53,7 +53,7 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHead index="01 / 04" title="Overview" subtitle="Summary — ATS Synthetic" />
+      <PageHead title="Overview" subtitle="Summary — ATS Synthetic" />
 
       <SectionHeader index="01" title="Today at a glance" />
       <div className="bento">

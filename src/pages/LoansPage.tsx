@@ -165,7 +165,7 @@ export function LoansPage() {
   const closeDrawer = useCallback(() => setOpenLoan(null), []);
   const openRecord = openLoan ? (records ?? []).find((r) => r.loan === openLoan) ?? null : null;
 
-  const head = <PageHead index="05 / 06" title="Loans" subtitle="Employee loans, repayments and outstanding balances — ATS Synthetic" />;
+  const head = <PageHead title="Loans" subtitle="Employee loans, repayments and outstanding balances — ATS Synthetic" />;
 
   if (loading) {
     return (

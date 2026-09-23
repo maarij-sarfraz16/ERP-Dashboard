@@ -278,7 +278,7 @@ export function ExpenseClaimsPage() {
   const openRecord = openClaim ? (records ?? []).find((r) => r.name === openClaim) ?? null : null;
 
   const head = (
-    <PageHead index="06 / 06" title="Expense Claims" subtitle="Medical and expense reimbursements, approvals and payouts — ATS Synthetic" />
+    <PageHead title="Expense Claims" subtitle="Medical and expense reimbursements, approvals and payouts — ATS Synthetic" />
   );
 
   if (loading) {

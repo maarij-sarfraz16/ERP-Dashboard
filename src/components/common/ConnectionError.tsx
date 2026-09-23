@@ -4,14 +4,20 @@
 
 import { frappeBaseUrl } from "../../api/frappeClient";
 import { useConnectionState } from "../../api/connectionStatus";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function ConnectionError() {
   const { message, hint } = useConnectionState();
 
   return (
-    <div className="page-head" style={{ marginBottom: 20 }}>
-      <div className="page-index">CONNECTION</div>
-      <h1>Backend unreachable</h1>
+    <div>
+      <div className="page-head">
+        <div>
+          <h1>Backend unreachable</h1>
+          <p className="chart-sub">Connection</p>
+        </div>
+        <ThemeToggle />
+      </div>
 
       <div
         className="card load-in"

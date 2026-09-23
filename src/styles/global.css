@@ -143,20 +143,6 @@ input {
   border-left-color: var(--data-amber);
 }
 
-.nav-index {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-muted);
-  width: 16px;
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .theme-toggle {
   --toggle-w: 52px;
   --toggle-h: 28px;
@@ -276,7 +262,7 @@ input {
 
 .page-head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 22px;
   padding-bottom: 16px;
@@ -288,10 +274,8 @@ input {
   font-weight: 600;
 }
 
-.page-head .page-index {
-  font-family: var(--font-mono);
-  color: var(--ink-muted);
-  font-size: 12px;
+.page-head .theme-toggle {
+  margin-top: 2px;
 }
 
 /* ------------------------------------------------------------ sections */
@@ -823,7 +807,7 @@ input {
     gap: 16px;
     padding: 16px 18px;
   }
-  .sidebar-footer {
+  .sidebar-user {
     margin-top: 0;
   }
   .nav-group {

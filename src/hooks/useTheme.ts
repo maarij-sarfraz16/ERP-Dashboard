@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 type Theme = "light" | "dark";
 
@@ -17,20 +17,42 @@ function getInitialTheme(): Theme {
     : "light";
 }
 
-export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+// The toggle now lives in the page header, so it mounts and unmounts with
+// each route. Keeping the theme in one module-level store (rather than per
+// component state) means every toggle reads the same value and the attribute
+// is applied once, at import time, instead of after the first render.
+let current: Theme = getInitialTheme();
+const listeners = new Set<() => void>();
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      // ignore storage access errors
-    }
-  }, [theme]);
+function apply(theme: Theme) {
+  current = theme;
+  document.documentElement.setAttribute("data-theme", theme);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // ignore storage access errors
+  }
+  listeners.forEach((fn) => fn());
+}
+
+if (typeof document !== "undefined") {
+  document.documentElement.setAttribute("data-theme", current);
+}
+
+function subscribe(fn: () => void) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+export function useTheme() {
+  const theme = useSyncExternalStore(
+    subscribe,
+    () => current,
+    () => current,
+  );
 
   const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === "light" ? "dark" : "light"));
+    apply(current === "light" ? "dark" : "light");
   }, []);
 
   return { theme, toggleTheme };

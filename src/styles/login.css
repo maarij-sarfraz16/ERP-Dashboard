@@ -214,26 +214,79 @@
 /* sidebar sign-out */
 
 .sidebar-user {
+  margin-top: auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
+/* The address gets at most two lines and never widens the rail, so the
+   button underneath keeps the same size and place for every user. */
+.sidebar-email {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
 .sign-out {
-  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--surface-recessed);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 12px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--ink-muted);
   cursor: pointer;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.sign-out-icon {
+  flex: none;
+  transition: transform 160ms ease;
 }
 
 .sign-out:hover {
   color: var(--ink);
   border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.sign-out:hover .sign-out-icon {
+  transform: translateX(2px);
+}
+
+.sign-out:active {
+  transform: translateY(1px);
+}
+
+.sign-out:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sign-out,
+  .sign-out-icon {
+    transition: none;
+  }
 }

@@ -132,7 +132,7 @@ export function PayrollPage() {
   if (loading || !data) {
     return (
       <>
-        <PageHead index="03 / 04" title="Payroll" subtitle="Cost tracking and run history" />
+        <PageHead title="Payroll" subtitle="Cost tracking and run history" />
         <PageLoader message="Loading payroll records…" />
       </>
     );
@@ -157,7 +157,6 @@ export function PayrollPage() {
   return (
     <div className="py-page">
       <PageHead
-        index="03 / 04"
         title="Payroll"
         subtitle={`Paid Salary from submitted salary slips, as ATS reports it · ${monthName}${
           selectedInProgress ? " (in progress)" : ""

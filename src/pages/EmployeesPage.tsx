@@ -18,7 +18,7 @@ export function EmployeesPage() {
   if (loading || !data) {
     return (
       <div className="employees-page">
-        <PageHead index="04 / 04" title="Employees" subtitle="Headcount and employee directory" />
+        <PageHead title="Employees" subtitle="Headcount and employee directory" />
         <PageLoader message="Loading employee data…" />
       </div>
     );
@@ -28,7 +28,7 @@ export function EmployeesPage() {
 
   return (
     <div className="employees-page">
-      <PageHead index="04 / 04" title="Employees" subtitle="Headcount and employee directory — ATS Synthetic" />
+      <PageHead title="Employees" subtitle="Headcount and employee directory — ATS Synthetic" />
 
       <EmployeeHero
         totalActive={data.totalActive}

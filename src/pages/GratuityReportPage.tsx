@@ -88,7 +88,7 @@ export function GratuityReportPage() {
         </svg>
         Back to Employees
       </Link>
-      <PageHead index="04 / 04" title="Gratuity Report" subtitle="Gratuity earned and consumed, per employee — ATS Synthetic" />
+      <PageHead title="Gratuity Report" subtitle="Gratuity earned and consumed, per employee — ATS Synthetic" />
     </>
   );
 

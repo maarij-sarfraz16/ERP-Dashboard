@@ -19,7 +19,7 @@ export function AttendancePage() {
   if (loading || !data) {
     return (
       <>
-        <PageHead index="02 / 04" title="Attendance" subtitle="Shift-level presence tracking" />
+        <PageHead title="Attendance" subtitle="Shift-level presence tracking" />
         <PageLoader message="Loading attendance records…" />
       </>
     );
@@ -33,7 +33,7 @@ export function AttendancePage() {
 
   return (
     <>
-      <PageHead index="02 / 04" title="Attendance" subtitle="Shift-level presence tracking — ATS Synthetic" />
+      <PageHead title="Attendance" subtitle="Shift-level presence tracking — ATS Synthetic" />
 
       <SectionHeader index="01" title="Presence over time" />
       <div className="card chart-card load-in load-in-1" style={{ minHeight: 360 }}>

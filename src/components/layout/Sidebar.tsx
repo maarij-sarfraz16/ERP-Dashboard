@@ -1,14 +1,13 @@
 import { NavLink } from "react-router-dom";
-import { useTheme } from "../../hooks/useTheme";
 import { AtsLogo } from "../common/AtsLogo";
 
 const NAV_ITEMS = [
-  { to: "/overview", index: "01", label: "Overview" },
-  { to: "/attendance", index: "02", label: "Attendance" },
-  { to: "/payroll", index: "03", label: "Payroll" },
-  { to: "/employees", index: "04", label: "Employees" },
-  { to: "/loans", index: "05", label: "Loans" },
-  { to: "/expense-claims", index: "06", label: "Expense Claims" },
+  { to: "/overview", label: "Overview" },
+  { to: "/attendance", label: "Attendance" },
+  { to: "/payroll", label: "Payroll" },
+  { to: "/employees", label: "Employees" },
+  { to: "/loans", label: "Loans" },
+  { to: "/expense-claims", label: "Expense Claims" },
 ];
 
 interface Props {
@@ -17,8 +16,6 @@ interface Props {
 }
 
 export function Sidebar({ user, onSignOut }: Props) {
-  const { theme, toggleTheme } = useTheme();
-
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -38,30 +35,35 @@ export function Sidebar({ user, onSignOut }: Props) {
             end
             className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
           >
-            <span className="nav-index">{item.index}</span>
             {item.label}
           </NavLink>
         ))}
       </nav>
 
-      <div className="sidebar-footer">
-        <span className="brand-sub">
-          {theme === "dark" ? "Dark Mode" : "Light Mode"}
-        </span>
-        <button
-          type="button"
-          className="theme-toggle"
-          data-active={theme}
-          onClick={toggleTheme}
-          aria-label="Toggle dark mode"
-        >
-          <span className="theme-toggle-dot" />
-        </button>
-      </div>
-
+      {/* Footer is pinned to the bottom and sized by the button, not the
+          address: a long email wraps onto a second line above it rather than
+          pushing Sign out sideways. */}
       <div className="sidebar-user">
-        <span className="brand-sub">{user}</span>
+        <span className="sidebar-email" title={user}>
+          {user}
+        </span>
         <button type="button" className="sign-out" onClick={onSignOut}>
+          <svg
+            className="sign-out-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
           Sign out
         </button>
       </div>
