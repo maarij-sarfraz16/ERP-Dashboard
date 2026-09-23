@@ -48,8 +48,11 @@ export function TopBalancesChart({
         <YAxis
           type="category"
           dataKey="label"
-          tick={({ x, y, index }: { x: number; y: number; index: number }) => {
-            const d = data[index];
+          // Recharts types x/y as `string | number` on a category axis; the
+          // <text> element below needs them as given, so they pass straight
+          // through rather than being narrowed to number.
+          tick={({ x, y, index }: { x?: string | number; y?: string | number; index?: number }) => {
+            const d = data[index ?? -1];
             return (
               <text x={x} y={y} textAnchor="end" dominantBaseline="central">
                 {d?.employeeId && (

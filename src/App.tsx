@@ -1,5 +1,4 @@
-import { useCallback } from "react";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ConnectionError } from "./components/common/ConnectionError";
 import { useConnectionState } from "./api/connectionStatus";
@@ -14,35 +13,21 @@ import { LoginPage } from "./pages/LoginPage";
 import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
-  const { user, signIn, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  // Signing out from, say, /payroll leaves that path in the address bar, so the
-  // next sign-in would land straight back there. Every session starts on the
-  // overview instead.
-  const handleSignIn = useCallback(
-    async (username: string, password: string) => {
-      const result = await signIn(username, password);
-      if (result.ok) navigate("/overview", { replace: true });
-      return result;
-    },
-    [signIn, navigate],
-  );
-
-  const handleSignOut = useCallback(() => {
-    void signOut();
-    navigate("/overview", { replace: true });
-  }, [signOut, navigate]);
+  const { state, signIn, signOut } = useAuth();
 
   // Pages render their own loading state; when a fetch fails against the
   // Frappe backend the shared connection store flips and the whole shell
   // swaps to one explanatory error screen instead of a stuck spinner.
   const { ok } = useConnectionState();
 
-  if (!user) return <LoginPage onSignIn={handleSignIn} />;
+  // The session lives in an HttpOnly cookie, so on a refresh only the server
+  // can say whether we are signed in. Render nothing for that one round trip
+  // rather than flashing the login screen at a signed-in user.
+  if (state.status === "checking") return null;
+  if (state.status === "out") return <LoginPage onSignIn={signIn} />;
 
   return (
-    <AppShell user={user.fullName} onSignOut={handleSignOut}>
+    <AppShell user={state.user} onSignOut={signOut}>
       {ok ? (
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />

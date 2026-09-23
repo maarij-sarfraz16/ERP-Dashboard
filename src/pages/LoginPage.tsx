@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { AtsLogo } from "../components/common/AtsLogo";
-import type { SignInResult } from "../auth/auth";
+import { SignInError } from "../auth/auth";
 
 interface Props {
-  onSignIn: (username: string, password: string) => Promise<SignInResult>;
+  onSignIn: (username: string, password: string) => Promise<void>;
 }
 
 export function LoginPage({ onSignIn }: Props) {
@@ -24,19 +24,19 @@ export function LoginPage({ onSignIn }: Props) {
     setBusy(true);
     setError("");
     try {
-      const result = await onSignIn(username, password);
-      if (!result.ok) {
-        // The server distinguishes a wrong password from an unreachable
-        // backend; pass that through instead of blaming the password for both.
-        setError(result.message);
-        setPassword("");
-        setBusy(false);
-      }
+      // Resolves only on success; the shell swaps in and this form unmounts,
+      // so `busy` is deliberately left on in that case.
+      await onSignIn(username, password);
     } catch (err) {
-      // `onSignIn` reports failures in its result, so reaching here means
-      // something unforeseen broke. Never leave the button stuck on "Checking…".
-      console.error("[login] sign-in failed:", err);
-      setError("Sign-in could not be completed. Please try again.");
+      // The server decides the wording for a refused sign-in — one generic
+      // message that never says which of the two fields was wrong. Anything
+      // else is the request itself failing.
+      setError(
+        err instanceof SignInError
+          ? err.message
+          : "Could not reach the sign-in server. Please try again.",
+      );
+      setPassword("");
       setBusy(false);
     }
   }
@@ -64,20 +64,16 @@ export function LoginPage({ onSignIn }: Props) {
 
           <div className="login-card-head">
             <h1 className="login-title">Sign in</h1>
-            <p className="login-subtitle">Use your HRMS account.</p>
+            <p className="login-subtitle">Sign in to continue.</p>
           </div>
 
           <label className="login-field">
-            <span className="card-label">USERNAME OR EMAIL</span>
+            <span className="card-label">USERNAME</span>
             <input
               type="text"
               name="username"
               autoComplete="username"
-              // Accounts are Frappe user ids (email addresses), so the phone
-              // keyboard must not capitalise or autocorrect what is typed.
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
+              autoCapitalize="characters"
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}

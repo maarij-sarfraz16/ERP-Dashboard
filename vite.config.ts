@@ -1,24 +1,44 @@
 /// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
+import { createApiMiddleware } from './server/api.mjs'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const target = env.VITE_API_BASE_URL ?? ''
-  const useProxy = env.VITE_USE_DEV_PROXY !== 'false'
-  const apiKey = env.VITE_FRAPPE_API_KEY ?? ''
-  const apiSecret = env.VITE_FRAPPE_API_SECRET ?? ''
+
+  // Sign-in, sign-out and the session-gated relay to Frappe, mounted inside
+  // the dev server so development runs on one origin and one port, exactly as
+  // production does under `npm start`. There is no second process to start and
+  // no second port to remember: http://<this host>:5173 is the whole app.
+  //
+  // This replaces the old `/frappe-api` proxy, which attached the Frappe token
+  // to anything that asked. The middleware attaches it only after checking the
+  // session cookie. Nothing here touches the Frappe server's configuration.
+  const dashboardServer = (): Plugin => ({
+    name: 'ats-dashboard-server',
+    configureServer(server) {
+      const api = createApiMiddleware(env)
+      server.middlewares.use((req, res, next) => {
+        api(req, res, next)
+      })
+    },
+  })
 
   return {
-    plugins: [react()],
+    plugins: [react(), dashboardServer()],
 
-    // `npm test` runs the attendance reconciliation against the live Frappe
-    // site (see src/api/attendanceReconciliation.test.ts). There is no dev
-    // server under Vitest, so the `/frappe-api` proxy does not exist; force
-    // direct calls. Node is not a browser, so CORS does not apply.
+    // `npm test` runs the reconciliations against the live Frappe site (see
+    // src/api/*.test.ts). There is no dev server under Vitest and therefore no
+    // relay, so those tests dial Frappe directly. These names have no VITE_
+    // prefix on purpose — Vite only exposes VITE_* to client code, so the
+    // secret cannot reach the browser bundle through them.
     test: {
-      env: { VITE_USE_DEV_PROXY: 'false' },
+      env: {
+        FRAPPE_API_BASE_URL: env.FRAPPE_API_BASE_URL ?? env.VITE_API_BASE_URL ?? '',
+        FRAPPE_API_KEY: env.FRAPPE_API_KEY ?? env.VITE_FRAPPE_API_KEY ?? '',
+        FRAPPE_API_SECRET: env.FRAPPE_API_SECRET ?? env.VITE_FRAPPE_API_SECRET ?? '',
+      },
       testTimeout: 120_000,
       hookTimeout: 120_000,
     },
@@ -31,34 +51,6 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       strictPort: true,
-
-      // Dev-only escape hatch for CORS. The browser refuses cross-origin
-      // requests unless the Frappe server lists this app's origin under
-      // `allow_cors`; routing through Vite makes every request same-origin,
-      // because Vite calls Frappe server-side where CORS does not apply.
-      //
-      // The app talks to `/frappe-api/...` when this is on (see
-      // `src/api/frappeClient.ts`). Production builds have no dev server, so
-      // there `allow_cors` on Frappe is mandatory.
-      proxy:
-        useProxy && target
-          ? {
-              '/frappe-api': {
-                target,
-                changeOrigin: true,
-                rewrite: (path: string) => path.replace(/^\/frappe-api/, ''),
-                // Employee photos under `/private/files/` are 403 without
-                // auth, and an `<img>` tag cannot attach the token header the
-                // API calls use. Add it here so photo requests routed through
-                // the proxy are authenticated too (API calls already send the
-                // same token, so this is a no-op for them).
-                headers:
-                  apiKey && apiSecret
-                    ? { Authorization: `token ${apiKey}:${apiSecret}` }
-                    : undefined,
-              },
-            }
-          : undefined,
     },
   }
 })

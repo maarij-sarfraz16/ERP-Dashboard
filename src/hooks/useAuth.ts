@@ -1,23 +1,49 @@
-import { useCallback, useState } from "react";
-import { readSession, signInUser, signOutUser, type AuthUser, type SignInResult } from "../auth/auth";
+import { useCallback, useEffect, useState } from "react";
+import {
+  AUTH_EXPIRED_EVENT,
+  fetchSession,
+  signIn as requestSignIn,
+  signOut as requestSignOut,
+} from "../auth/auth";
+
+/**
+ * `null` while the session is still being checked, so the app can hold off a
+ * frame instead of flashing the login screen at an already-signed-in user on
+ * every refresh.
+ */
+export type AuthState = { status: "checking" } | { status: "in"; user: string } | { status: "out" };
 
 export function useAuth() {
-  // Restored from `sessionStorage` on first render, so a page refresh inside a
-  // signed-in tab does not bounce back to the login screen.
-  const [user, setUser] = useState<AuthUser | null>(readSession);
+  const [state, setState] = useState<AuthState>({ status: "checking" });
 
-  const signIn = useCallback(async (username: string, password: string): Promise<SignInResult> => {
-    const result = await signInUser(username, password);
-    if (result.ok) setUser(result.user);
-    return result;
+  // One ask on mount: the cookie is HttpOnly, so the server is the only thing
+  // that can say whether this browser still has a session.
+  useEffect(() => {
+    let cancelled = false;
+    fetchSession().then((user) => {
+      if (cancelled) return;
+      setState(user ? { status: "in", user } : { status: "out" });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const signOut = useCallback(async () => {
-    // Clear the UI first: the Frappe logout call is best-effort and must never
-    // leave the person staring at a dashboard they just signed out of.
-    setUser(null);
-    await signOutUser();
+  useEffect(() => {
+    const onExpired = () => setState({ status: "out" });
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, []);
 
-  return { user, signIn, signOut };
+  const signIn = useCallback(async (username: string, password: string): Promise<void> => {
+    const user = await requestSignIn(username, password);
+    setState({ status: "in", user });
+  }, []);
+
+  const signOut = useCallback(async (): Promise<void> => {
+    await requestSignOut();
+    setState({ status: "out" });
+  }, []);
+
+  return { state, signIn, signOut };
 }

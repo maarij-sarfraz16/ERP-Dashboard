@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 
+// Deliberately empty of backend settings. The Frappe address, API key and API
+// secret are read only by the server (`server/api.mjs`) and are NOT VITE_*
+// prefixed, so Vite cannot expose them to the browser bundle. Client code
+// talks to `/frappe-api` on its own origin instead — see `src/api/frappeClient.ts`.
 interface ImportMetaEnv {
-  readonly VITE_API_BASE_URL: string;
-  readonly VITE_FRAPPE_API_KEY: string;
-  readonly VITE_FRAPPE_API_SECRET: string;
-  /** "false" disables Vite's dev proxy and calls Frappe directly. */
-  readonly VITE_USE_DEV_PROXY?: string;
+  readonly MODE: string;
 }
 
 interface ImportMeta {

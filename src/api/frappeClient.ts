@@ -1,48 +1,47 @@
 // Single entry point for every call to the Frappe / HR backend.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// CORS — read this before debugging a failed request
+// How requests get out, and why CORS no longer applies
 // ─────────────────────────────────────────────────────────────────────────────
-// The browser blocks cross-origin XHR unless the Frappe server explicitly
-// allows this app's origin. A correct API key/secret does NOT help: the
-// preflight is rejected before the credentials are ever looked at, and the
-// only symptom you get in the console is an opaque "TypeError: Failed to
-// fetch" / "blocked by CORS policy".
+// The browser never talks to Frappe. Every call goes to `/frappe-api/...` on
+// this app's own origin, where the dashboard server (`server/api.mjs`) checks
+// the session cookie and then relays the request to Frappe with the API token
+// attached server-side. Same-origin, so there is no preflight and `allow_cors`
+// on the Frappe site is irrelevant — in dev and in production alike.
 //
-// On the Frappe host, edit `sites/common_site_config.json` (or the individual
-// `sites/<site>/site_config.json`) and add this app's EXACT origin —
-// protocol + host + port, no trailing slash:
+// That is also the security boundary: the token used to be compiled into this
+// bundle, which meant anyone who opened the page could read it out of the
+// JavaScript and query the HR data without signing in. It now exists only on
+// the server, and a request without a valid session gets 401 here and is never
+// forwarded.
 //
-//     "allow_cors": ["http://localhost:5173", "http://10.1.1.98:5173"]
-//
-// Then restart: `bench restart` (production) or restart `bench start` (dev).
-// Every origin the dashboard is served from needs its own entry — Vite's dev
-// server (:5173) and the built `dist/` preview (:4173) are different origins,
-// as is the same host reached by IP instead of by `localhost`.
-//
-// As of this writing the site at 10.1.1.98:8000 returns no
-// Access-Control-Allow-Origin header, i.e. `allow_cors` is NOT configured. In
-// development that does not matter, because requests are routed through Vite's
-// `/frappe-api` proxy (see `vite.config.ts`) and are therefore same-origin. A
-// PRODUCTION BUILD HAS NO PROXY, so `allow_cors` must be set before deploying.
+// Under Vitest there is no dev server and no browser, so the reconciliation
+// tests dial Frappe directly instead — see DIRECT_ACCESS below.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { reportAuthExpired } from "../auth/auth";
 import { reportConnectionState } from "./connectionStatus";
 
-const CONFIGURED_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
-const API_KEY = import.meta.env.VITE_FRAPPE_API_KEY ?? "";
-const API_SECRET = import.meta.env.VITE_FRAPPE_API_SECRET ?? "";
-
 /**
- * In dev, requests go to Vite's `/frappe-api` proxy (see `vite.config.ts`),
- * which forwards them to `VITE_API_BASE_URL` server-side and sidesteps CORS
- * entirely. Set `VITE_USE_DEV_PROXY=false` to call Frappe directly instead —
- * that needs `allow_cors` on the server, as a production build always does.
+ * Node-only escape hatch for the reconciliation tests, which run outside any
+ * server (`npm test`) and so cannot use the relay. `process` is undefined in
+ * the browser, and these keys are read dynamically rather than through
+ * `import.meta.env`, so Vite cannot inline them into the shipped bundle even
+ * by accident.
  */
-const USE_DEV_PROXY =
-  import.meta.env.DEV && import.meta.env.VITE_USE_DEV_PROXY !== "false" && Boolean(CONFIGURED_URL);
+const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+  ?.env;
 
-const BASE_URL = USE_DEV_PROXY ? "/frappe-api" : CONFIGURED_URL;
+const DIRECT_ACCESS = nodeEnv
+  ? {
+      baseUrl: (nodeEnv["FRAPPE_API_BASE_URL"] ?? "").replace(/\/+$/, ""),
+      key: nodeEnv["FRAPPE_API_KEY"] ?? "",
+      secret: nodeEnv["FRAPPE_API_SECRET"] ?? "",
+    }
+  : null;
+
+/** In the browser this is a path on our own origin, not a Frappe address. */
+const BASE_URL = DIRECT_ACCESS ? DIRECT_ACCESS.baseUrl : "/frappe-api";
 
 /** How long a single request may take before we give up on the server. */
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -74,25 +73,32 @@ export class FrappeError extends Error {
 }
 
 function assertConfigured(): void {
-  if (!BASE_URL) {
-    throw new FrappeError("VITE_API_BASE_URL is not set.", {
+  // In the browser there is nothing to configure: the relay is always at
+  // `/frappe-api` on this origin, and the server reports its own missing
+  // credentials as a 503 with a hint. Only the Node test path needs checking.
+  if (!DIRECT_ACCESS) return;
+
+  if (!DIRECT_ACCESS.baseUrl) {
+    throw new FrappeError("FRAPPE_API_BASE_URL is not set.", {
       isConfigError: true,
-      hint: "Add VITE_API_BASE_URL=http://<SERVER_IP>:<PORT> to .env and restart the dev server (Vite only reads .env at startup).",
+      hint: "Add FRAPPE_API_BASE_URL=http://<SERVER_IP>:<PORT> to .env — `npm test` reads it through vite.config.ts.",
     });
   }
-  if (!API_KEY || !API_SECRET) {
+  if (!DIRECT_ACCESS.key || !DIRECT_ACCESS.secret) {
     throw new FrappeError("Frappe API credentials are not set.", {
       isConfigError: true,
-      hint: "Add VITE_FRAPPE_API_KEY and VITE_FRAPPE_API_SECRET to .env. Generate them in Frappe under User → API Access → Generate Keys.",
+      hint: "Add FRAPPE_API_KEY and FRAPPE_API_SECRET to .env. Generate them in Frappe under User → API Access → Generate Keys.",
     });
   }
 }
 
 function authHeaders(): HeadersInit {
+  // The browser sends no token at all — only its session cookie, which the
+  // relay checks before attaching the real credentials server-side.
+  if (!DIRECT_ACCESS) return { Accept: "application/json" };
+
   return {
-    // Token auth is required for cross-origin calls: session cookies are not
-    // sent to a different origin/port, so cookie auth silently 403s here.
-    Authorization: `token ${API_KEY}:${API_SECRET}`,
+    Authorization: `token ${DIRECT_ACCESS.key}:${DIRECT_ACCESS.secret}`,
     Accept: "application/json",
   };
 }
@@ -121,7 +127,7 @@ function extractServerMessage(status: number, body: string): string {
 
 function hintForStatus(status: number): string {
   if (status === 401 || status === 403) {
-    return "Check VITE_FRAPPE_API_KEY / VITE_FRAPPE_API_SECRET, and that the linked Frappe user has read permission on this doctype.";
+    return "Your session may have ended — sign in again. If it persists, check FRAPPE_API_KEY / FRAPPE_API_SECRET on the server and that the linked Frappe user has read permission on this doctype.";
   }
   if (status === 404) {
     return "The doctype or whitelisted method does not exist on this site — check the spelling and that the HRMS app is installed.";
@@ -155,24 +161,25 @@ export async function frappeFetch<T>(
     response = await fetch(url, {
       ...fetchInit,
       signal: controller.signal,
+      // Carries the session cookie to our own relay. Same-origin, so the
+      // cookie goes nowhere else.
+      credentials: "same-origin",
       headers: { ...authHeaders(), ...(fetchInit.headers ?? {}) },
     });
   } catch (err) {
-    // fetch() only rejects for network-level problems: server down, wrong
-    // IP/port, DNS failure, timeout, or a CORS preflight rejection. The
-    // browser deliberately hides which one it was.
+    // fetch() only rejects for network-level problems: the dashboard server is
+    // down, or the request timed out.
     const aborted = err instanceof DOMException && err.name === "AbortError";
+    const where = DIRECT_ACCESS ? ` (${DIRECT_ACCESS.baseUrl})` : "";
     throw new FrappeError(
       aborted
-        ? `Frappe did not respond within ${timeoutMs / 1000}s (${CONFIGURED_URL}).`
-        : `Could not reach the Frappe server at ${CONFIGURED_URL}.`,
+        ? `The server did not respond within ${timeoutMs / 1000}s${where}.`
+        : `Could not reach the dashboard server${where}.`,
       {
         isNetworkError: true,
         hint: aborted
           ? "The server is reachable but slow — check its load, or narrow the query."
-          : USE_DEV_PROXY
-            ? "Vite's dev proxy could not reach the server — check that VITE_API_BASE_URL is right and the Frappe site is up (CORS is not involved in proxy mode)."
-            : "Either the server is down / the IP:port in VITE_API_BASE_URL is wrong, or the server's site config is missing this app's origin under `allow_cors` (see the note at the top of this file).",
+          : "The dashboard server is not responding. Check that it is still running, then reload.",
       },
     );
   } finally {
@@ -180,6 +187,10 @@ export async function frappeFetch<T>(
   }
 
   if (!response.ok) {
+    // 401 from our own relay means the session ended while the page was open.
+    // Drop back to the login screen rather than filling the shell with errors.
+    if (response.status === 401 && !DIRECT_ACCESS) reportAuthExpired();
+
     const body = await response.text().catch(() => "");
     throw new FrappeError(extractServerMessage(response.status, body), {
       status: response.status,
@@ -301,14 +312,14 @@ export async function tracked<T>(task: Promise<T>): Promise<T> {
 }
 
 /**
- * Absolute URL for a file path as Frappe stores it on a doc (`/files/x.png`
- * or `/private/files/x.jpg`), for use in `<img src>`.
+ * URL for a file path as Frappe stores it on a doc (`/files/x.png` or
+ * `/private/files/x.jpg`), for use in `<img src>`.
  *
- * Private files need auth, and an `<img>` tag cannot send the token header.
- * In dev the proxy injects it (see `vite.config.ts`), so both public and
- * private photos load. A production build hits Frappe directly, where a
- * private photo only loads if the browser already holds a Frappe session
- * cookie for that host; public `/files/` photos always load.
+ * Private files need auth and an `<img>` tag cannot send a token header, so
+ * these go through the relay like everything else: the browser requests
+ * `/frappe-api/private/files/…` on this origin, the session cookie rides
+ * along automatically, and the server attaches the real credentials. Works
+ * the same in dev and in production now, which it did not before.
  */
 export function frappeFileUrl(path: string | null | undefined): string | null {
   const trimmed = (path ?? "").trim();
@@ -317,8 +328,12 @@ export function frappeFileUrl(path: string | null | undefined): string | null {
   return `${BASE_URL}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
 }
 
-/** The Frappe site this app talks to, for display in diagnostics. */
-export const frappeBaseUrl = CONFIGURED_URL;
+/**
+ * Where this app sends its requests, for display in diagnostics. In the
+ * browser that is our own relay — the Frappe address is deliberately not
+ * disclosed to the client.
+ */
+export const frappeBaseUrl = DIRECT_ACCESS ? DIRECT_ACCESS.baseUrl : `${BASE_URL} (this server)`;
 
-/** True when requests are tunnelled through Vite's dev proxy. */
-export const frappeUsesDevProxy = USE_DEV_PROXY;
+/** True when requests pass through this app's server rather than going direct. */
+export const frappeUsesRelay = !DIRECT_ACCESS;

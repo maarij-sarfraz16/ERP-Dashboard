@@ -12,42 +12,65 @@ React + TypeScript + Vite front end for a Frappe / HR (HRMS) backend.
 2. **Fill in `.env`** (copy `.env.example` if it is missing):
 
    ```
-   VITE_API_BASE_URL=http://10.1.1.98:8000
-   VITE_FRAPPE_API_KEY=...
-   VITE_FRAPPE_API_SECRET=...
-   VITE_USE_DEV_PROXY=true
+   FRAPPE_API_BASE_URL=http://10.1.1.98:8000
+   FRAPPE_API_KEY=...
+   FRAPPE_API_SECRET=...
    ```
 
-   Vite reads `.env` only at startup — restart `npm run dev` after editing it.
+   These names have **no `VITE_` prefix on purpose**: Vite only exposes
+   `VITE_*` to client code, so the token stays server-side. Do not rename them.
+   The app reads `.env` only at startup — restart it after editing.
 
-3. **CORS.** `http://10.1.1.98:8000` currently returns **no**
-   `Access-Control-Allow-Origin` header, i.e. `allow_cors` is not configured.
-   The browser blocks cross-origin requests before the API key is even checked,
-   so direct calls would fail no matter how correct the credentials are.
+3. **CORS — no longer applicable.** The browser never calls Frappe. It calls
+   `/frappe-api/...` on the dashboard's own origin, where the server checks the
+   session cookie and then relays the request with the API token attached
+   (`server/api.mjs`). Every request is same-origin, in development and in
+   production alike, so `allow_cors` on the Frappe host is not needed and
+   nothing has to change on the ERP server.
 
-   In development this is handled for you: requests go to Vite's `/frappe-api`
-   proxy (`vite.config.ts`), which forwards them server-side, making everything
-   same-origin. Nothing needs changing on the ERP server to develop.
+   The relay forwards `GET`/`HEAD` only — the dashboard is read-only, and so is
+   the relay. Requests without a valid session are rejected with 401 and never
+   reach Frappe.
 
-   **A production build has no dev server and therefore no proxy.** Before
-   deploying, add to `sites/common_site_config.json` on the Frappe host:
-
-   ```json
-   "allow_cors": ["http://localhost:5173", "http://10.1.1.98:5173"]
-   ```
-
-   One entry per exact origin (protocol + host + port) the dashboard is served
-   from, then `bench restart`. Set `VITE_USE_DEV_PROXY=false` to test direct
-   calls once that is in place.
-
-4. **Verify.** Load the dashboard, open the browser console and run:
+4. **Verify.** Sign in, open the browser console and run:
 
    ```js
    await testFrappeConnection()
    ```
 
-   It checks reachability/CORS, then auth, then per-doctype read permission,
-   and prints a table showing which step failed.
+   It checks that the relay is reachable, then auth, then per-doctype read
+   permission, and prints a table showing which step failed.
+
+## Signing in
+
+Two fixed accounts, configured server-side. There is no user table, no
+registration and no self-service password reset.
+
+1. Generate a bcrypt hash for each account, on the machine that runs the app:
+
+   ```
+   npm run hash-password
+   ```
+
+   It prompts with the echo turned off and prints only the hash. The password
+   itself is never stored, logged, or passed as an argument.
+
+2. Put the results in `.env`:
+
+   ```
+   AUTH_USER_1=<first username>
+   AUTH_PASSWORD_HASH_1=<hash from the first run>
+   AUTH_USER_2=<second username>
+   AUTH_PASSWORD_HASH_2=<hash from the second run>
+   AUTH_COOKIE_SECURE=false   # true only when served over HTTPS
+   ```
+
+3. Restart the app. Usernames are matched case-insensitively; passwords are not.
+
+Sessions live in the server's memory and are held by an `HttpOnly` cookie, so
+they survive a page refresh, end when the browser closes, and are dropped when
+the server restarts. Signing out destroys the session server-side immediately.
+Ten failed attempts from one address pauses sign-in from it for 15 minutes.
 
 ## Architecture
 
@@ -156,8 +179,13 @@ it currently reads as a large decline.
 ## Scripts
 
 ```
-npm run dev      # Vite dev server
-npm run build    # tsc -b && vite build
-npm run lint     # oxlint
-npm test         # reconciliation against the live Frappe site in .env
+npm run dev            # dev server on :5173 — app, sign-in and relay, one port
+npm run build          # tsc -b && vite build
+npm start              # serve the built dist/ with sign-in and relay (PORT, default 5173)
+npm run hash-password  # generate one account's bcrypt hash, interactively
+npm run lint           # oxlint
+npm test               # reconciliation against the live Frappe site in .env
 ```
+
+`npm run dev` and `npm start` both serve the whole app on a single origin —
+there is no separate API process to start.

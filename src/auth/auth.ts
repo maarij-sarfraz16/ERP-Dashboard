@@ -1,175 +1,91 @@
-// Dashboard sign-in.
+// Dashboard sign-in, client half.
 //
-// Accounts are the Frappe ones: the password is checked by the server against
-// the `User` table, and the signed-in profile (name, email, photo, roles) is
-// read back from the database. Nothing about an account is hardcoded here any
-// more, and a successful sign-in is recorded server-side on `User.last_login`.
-//
-// This is still not the security boundary — the Frappe API token in `.env` is
-// what actually authorises the data the dashboard reads. What the login does
-// give you is a real account per person instead of one shared secret baked
-// into the bundle.
+// The check itself happens on the server (see `server/api.mjs`); this file only
+// carries the form over and reads back the answer. There is no username, no
+// password hash and no session token in the browser: the session lives in an
+// HttpOnly cookie that script cannot read, and the data relay refuses any
+// request that does not carry it. Clearing React state or editing anything in
+// devtools therefore gets you nothing — the data is behind the server.
 
-import {
-  fetchUserRoles,
-  findFrappeUser,
-  frappeLogin,
-  frappeLogout,
-  InvalidCredentialsError,
-} from "../api/authApi";
-import { FrappeError, frappeFileUrl } from "../api/frappeClient";
-import { sha256Hex } from "./sha256";
-
-/** The signed-in person, as the UI needs them. */
-export interface AuthUser {
-  /** Frappe `User.name` — the user id, normally an email address. */
-  id: string;
-  fullName: string;
-  email: string;
-  /** Absolute URL of the profile photo, or `null`. */
-  imageUrl: string | null;
-  roles: string[];
-  /** Which credential store accepted them. */
-  source: "frappe" | "local";
-  /** ISO timestamp of the sign-in. */
-  signedInAt: string;
-}
-
-export type SignInResult = { ok: true; user: AuthUser } | { ok: false; message: string };
-
-const SESSION_KEY = "ats-app-session";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Offline fallback account
-// ─────────────────────────────────────────────────────────────────────────────
-// Kept so the dashboard is still reachable when Frappe is down or unreachable —
-// losing the backend should not also lock out the screen that explains the
-// backend is down. It is tried only after the server has refused to answer at
-// all, never to override a Frappe rejection, and it grants no extra access:
-// every page behind it still needs the API token to load anything.
-//
-// Set VITE_ALLOW_LOCAL_LOGIN=false in `.env` to remove it entirely.
-const LOCAL_USERNAME = "ADMINISTRATOR";
-const LOCAL_PASSWORD_SHA256 = "8f570d3f3c8a951cfe70fbe1e8f5d4ff6e50bcca232d4d912d0f2eedee82e067";
-const LOCAL_LOGIN_ENABLED = import.meta.env.VITE_ALLOW_LOCAL_LOGIN !== "false";
-
-async function verifyLocal(username: string, password: string): Promise<boolean> {
-  if (!LOCAL_LOGIN_ENABLED) return false;
-  const nameOk = username.trim().toUpperCase() === LOCAL_USERNAME;
-  // `crypto.subtle` is undefined on a plain-HTTP LAN origin, so this hashes in
-  // plain JS there rather than throwing (see `sha256.ts`).
-  const hash = await sha256Hex(password);
-  return nameOk && hash === LOCAL_PASSWORD_SHA256;
-}
+/** Shown for every failed sign-in, whatever the actual reason. */
+const GENERIC_ERROR = "Invalid username or password.";
 
 /**
- * Signs in against Frappe, falling back to the offline account only when the
- * server could not be reached at all.
- *
- * Never throws: every failure comes back as `{ ok: false, message }` so the
- * login button can always return to an idle state.
+ * Raised when the server is reachable but refuses the credentials, so the page
+ * can tell "wrong password" apart from "server is down" without telling the
+ * user which of the two fields was wrong.
  */
-export async function signInUser(username: string, password: string): Promise<SignInResult> {
-  const usr = username.trim();
-  if (!usr || !password) return { ok: false, message: "Enter a username and password." };
-
-  try {
-    const fullName = await frappeLogin(usr, password);
-    const record = await findFrappeUser(usr);
-    const id = record?.name ?? usr;
-
-    const user: AuthUser = {
-      id,
-      fullName: record?.full_name?.trim() || fullName,
-      email: record?.email ?? "",
-      imageUrl: frappeFileUrl(record?.user_image),
-      roles: record ? await fetchUserRoles(id) : [],
-      source: "frappe",
-      signedInAt: new Date().toISOString(),
-    };
-    writeSession(user);
-    return { ok: true, user };
-  } catch (err) {
-    if (err instanceof InvalidCredentialsError) {
-      return { ok: false, message: err.message };
-    }
-
-    // The server never got to judge the password. Only here does the offline
-    // account apply.
-    const unreachable = err instanceof FrappeError && (err.isNetworkError || err.isConfigError);
-    if (unreachable && (await verifyLocal(usr, password))) {
-      const user: AuthUser = {
-        id: LOCAL_USERNAME,
-        fullName: LOCAL_USERNAME,
-        email: "",
-        imageUrl: null,
-        roles: [],
-        source: "local",
-        signedInAt: new Date().toISOString(),
-      };
-      writeSession(user);
-      return { ok: true, user };
-    }
-
-    console.error("[auth] sign-in failed:", err);
-    return {
-      ok: false,
-      message: unreachable
-        ? "Cannot reach the HRMS server. Check that it is running, then try again."
-        : "Sign-in could not be completed. Please try again.",
-    };
+export class SignInError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SignInError";
   }
 }
 
-/** Ends the Frappe session too, so `sid` does not outlive the dashboard one. */
-export async function signOutUser(): Promise<void> {
-  const current = readSession();
-  clearSession();
-  if (current?.source === "frappe") await frappeLogout();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Session storage
-// ─────────────────────────────────────────────────────────────────────────────
-// `sessionStorage` is per-tab and cleared when the tab closes, which is the
-// intended lifetime. Every access is guarded: it throws outright in some
-// privacy modes, and a storage error must not take the app down with it.
-
-function isAuthUser(value: unknown): value is AuthUser {
-  const u = value as Partial<AuthUser> | null;
-  return (
-    !!u &&
-    typeof u.id === "string" &&
-    typeof u.fullName === "string" &&
-    (u.source === "frappe" || u.source === "local")
-  );
-}
-
-export function readSession(): AuthUser | null {
+async function readError(response: Response, fallback: string): Promise<string> {
   try {
-    const stored = window.sessionStorage.getItem(SESSION_KEY);
-    if (!stored) return null;
-    const parsed: unknown = JSON.parse(stored);
-    // A session written by an older build has a different shape; drop it
-    // rather than rendering the shell with half a user.
-    return isAuthUser(parsed) ? parsed : null;
+    const body = (await response.json()) as { error?: string; hint?: string };
+    return [body?.error, body?.hint].filter(Boolean).join(" ") || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Resolves to the signed-in username. Throws `SignInError` if refused. */
+export async function signIn(username: string, password: string): Promise<string> {
+  const response = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    // 503 means the server has no accounts configured — worth saying plainly,
+    // since no password will ever work until .env is filled in. Everything
+    // else collapses to the one generic message.
+    const message =
+      response.status === 503 ? await readError(response, GENERIC_ERROR) : GENERIC_ERROR;
+    throw new SignInError(message);
+  }
+
+  const body = (await response.json()) as { user?: string };
+  if (!body?.user) throw new SignInError(GENERIC_ERROR);
+  return body.user;
+}
+
+/** Destroys the session server-side and clears the cookie. */
+export async function signOut(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+  } catch {
+    // The local state is cleared either way; a dropped request just leaves the
+    // server entry to expire on its own.
+  }
+}
+
+/** The current session's username, or null. Asked of the server, not of storage. */
+export async function fetchSession(): Promise<string | null> {
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { user?: string };
+    return body?.user ?? null;
   } catch {
     return null;
   }
 }
 
-export function writeSession(user: AuthUser): void {
-  try {
-    window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  } catch {
-    // ignore storage access errors (private browsing, quota, etc.)
-  }
-}
+/**
+ * Broadcast when a data request comes back 401 — the session ended while the
+ * page was open (server restart, or the idle cap). `useAuth` listens and drops
+ * back to the login screen instead of leaving a shell full of failed fetches.
+ */
+export const AUTH_EXPIRED_EVENT = "ats-auth-expired";
 
-export function clearSession(): void {
-  try {
-    window.sessionStorage.removeItem(SESSION_KEY);
-  } catch {
-    // ignore storage access errors
-  }
+export function reportAuthExpired(): void {
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 }

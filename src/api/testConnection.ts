@@ -6,7 +6,7 @@
 // doctype permissions — and prints which step failed, so a blank dashboard can
 // be traced to the server, the keys or the CORS config in one call.
 
-import { callMethod, frappeBaseUrl, frappeFetch, frappeUsesDevProxy, getCount } from "./frappeClient";
+import { callMethod, frappeBaseUrl, frappeFetch, frappeUsesRelay, getCount } from "./frappeClient";
 import { FrappeError } from "./frappeClient";
 
 export interface ConnectionCheck {
@@ -33,24 +33,24 @@ function describe(err: unknown): string {
 export async function testFrappeConnection(): Promise<ConnectionReport> {
   const checks: ConnectionCheck[] = [];
 
-  // 1. Is the origin reachable at all, and does CORS let us read the response?
+  // 1. Is the relay reachable, and does our session still let us through?
   try {
     await frappeFetch<unknown>("/api/method/ping");
     checks.push({
-      step: frappeUsesDevProxy ? "reachable (via Vite proxy)" : "reachable + CORS",
+      step: frappeUsesRelay ? "reachable (via this app's server)" : "reachable (direct)",
       ok: true,
       detail: `${frappeBaseUrl} responded`,
     });
   } catch (err) {
     checks.push({
-      step: frappeUsesDevProxy ? "reachable (via Vite proxy)" : "reachable + CORS",
+      step: frappeUsesRelay ? "reachable (via this app's server)" : "reachable (direct)",
       ok: false,
       detail: describe(err),
     });
     return report(checks);
   }
 
-  // 2. Do the API key/secret resolve to a real user?
+  // 2. Do the server-held API key/secret resolve to a real Frappe user?
   try {
     const user = await callMethod<string>("frappe.auth.get_logged_user");
     const ok = Boolean(user) && user !== "Guest";
@@ -82,13 +82,13 @@ export async function testFrappeConnection(): Promise<ConnectionReport> {
 
 function report(checks: ConnectionCheck[]): ConnectionReport {
   const result: ConnectionReport = {
-    baseUrl: frappeBaseUrl || "(VITE_API_BASE_URL not set)",
+    baseUrl: frappeBaseUrl || "(not configured)",
     ok: checks.every((c) => c.ok),
     checks,
   };
   console.log(
     `[frappe] ${result.ok ? "✅ all checks passed" : "❌ check failed"} — ${result.baseUrl}` +
-      (frappeUsesDevProxy ? " (via Vite /frappe-api proxy)" : " (direct, needs allow_cors)"),
+      (frappeUsesRelay ? " (via /frappe-api on this server)" : " (direct)"),
   );
   console.table(checks);
   return result;

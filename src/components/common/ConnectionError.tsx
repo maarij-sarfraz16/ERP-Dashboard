@@ -33,10 +33,7 @@ export function ConnectionError() {
         ) : null}
 
         <p className="chart-sub" style={{ marginTop: 16, lineHeight: 1.6 }}>
-          Endpoint:{" "}
-          <code style={{ fontFamily: "var(--font-mono)" }}>
-            {frappeBaseUrl || "VITE_API_BASE_URL is not set"}
-          </code>
+          Endpoint: <code style={{ fontFamily: "var(--font-mono)" }}>{frappeBaseUrl}</code>
         </p>
 
         <ol
@@ -49,19 +46,17 @@ export function ConnectionError() {
             to see which step fails.
           </li>
           <li>
-            Confirm <code style={{ fontFamily: "var(--font-mono)" }}>allow_cors</code> in the
-            Frappe site config lists this exact origin —{" "}
-            <code style={{ fontFamily: "var(--font-mono)" }}>{window.location.origin}</code> — and
-            that <code style={{ fontFamily: "var(--font-mono)" }}>bench restart</code> has been run
-            since.
+            If it reports <em>not authenticated</em>, the sign-in session has ended — reload the
+            page and sign in again.
           </li>
           <li>
-            Check <code style={{ fontFamily: "var(--font-mono)" }}>VITE_API_BASE_URL</code>,{" "}
-            <code style={{ fontFamily: "var(--font-mono)" }}>VITE_FRAPPE_API_KEY</code> and{" "}
-            <code style={{ fontFamily: "var(--font-mono)" }}>VITE_FRAPPE_API_SECRET</code> in{" "}
-            <code style={{ fontFamily: "var(--font-mono)" }}>.env</code>, then restart the dev
-            server — Vite reads <code style={{ fontFamily: "var(--font-mono)" }}>.env</code> only
-            at startup.
+            Otherwise check{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>FRAPPE_API_BASE_URL</code>,{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>FRAPPE_API_KEY</code> and{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>FRAPPE_API_SECRET</code> in{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>.env</code> on the machine running
+            the dashboard, then restart it — the server reads{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>.env</code> only at startup.
           </li>
         </ol>
 
