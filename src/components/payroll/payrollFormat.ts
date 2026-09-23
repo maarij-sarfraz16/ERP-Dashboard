@@ -1,19 +1,26 @@
 import type { EmploymentType } from "../../data/mockData";
 
-// Payroll figures are never rounded: dividing by a million keeps every rupee
-// (and paisa) as decimals, so "Rs 165.137563 M" is exactly Rs 165,137,563.
+// Payroll figures are never rounded. Every number is cut to exactly two
+// decimals by dropping whatever follows (11.268 → "11.26", 11 → "11.00"),
+// so "Rs 165.13 M" comes from Rs 165,137,563 without rounding up.
 const EXACT = { maximumFractionDigits: 8 } as const;
 
-/** Exact figure in millions from Rs 1M up, full rupees below that. */
-export function formatRs(v: number): string {
-  if (Math.abs(v) >= 1e6) return `Rs ${(v / 1e6).toLocaleString("en-US", EXACT)} M`;
-  return `Rs ${v.toLocaleString("en-US", EXACT)}`;
+/** Truncate to two decimals with grouping, never rounding: 1234.567 → "1,234.56". */
+export function trunc2(v: number): string {
+  const [int, frac = ""] = v.toLocaleString("en-US", EXACT).split(".");
+  return `${int}.${(frac + "00").slice(0, 2)}`;
 }
 
-/** Axis ticks and bar labels: "165.137563M", "850,000". Exact, like `formatRs`. */
+/** Figure in millions from Rs 1M up, full rupees below that; two decimals, truncated. */
+export function formatRs(v: number): string {
+  if (Math.abs(v) >= 1e6) return `Rs ${trunc2(v / 1e6)} M`;
+  return `Rs ${trunc2(v)}`;
+}
+
+/** Axis ticks and bar labels: "165.13M", "850,000.00". Truncated, like `formatRs`. */
 export function formatRsTick(v: number): string {
-  if (Math.abs(v) >= 1e6) return `${(v / 1e6).toLocaleString("en-US", EXACT)}M`;
-  return v.toLocaleString("en-US", EXACT);
+  if (Math.abs(v) >= 1e6) return `${trunc2(v / 1e6)}M`;
+  return trunc2(v);
 }
 
 /** Month key `"2026-08"` → `"Aug 2026"`. */

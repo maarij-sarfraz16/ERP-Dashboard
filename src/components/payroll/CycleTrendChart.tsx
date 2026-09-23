@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import type { PayrollMonthPoint } from "../../data/mockData";
 import { ChartTooltip } from "../charts/ChartTooltip";
-import { formatRs, formatRsTick } from "./payrollFormat";
+import { formatRs, formatRsTick, trunc2 } from "./payrollFormat";
 
 const AXIS_TICK = { fill: "var(--ink-muted)", fontSize: 10.5, fontFamily: "var(--font-mono)" };
 
@@ -76,7 +76,7 @@ export function CycleTrendChart({
                   { label, value: formatRs(p[dataKey]), color },
                   {
                     label: "Share of month",
-                    value: p.paid ? `${((p[dataKey] / p.paid) * 100).toFixed(2)}%` : "—",
+                    value: p.paid ? `${trunc2((p[dataKey] / p.paid) * 100)}%` : "—",
                     color: "var(--ink-on-accent)",
                   },
                 ]}

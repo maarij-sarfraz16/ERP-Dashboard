@@ -12,6 +12,12 @@ import { AttendanceStackedChart } from "../components/charts/AttendanceStackedCh
 import { PayrollDeptChart } from "../components/charts/PayrollDeptChart";
 import { HeadcountMiniChart } from "../components/charts/HeadcountMiniChart";
 import { MonthSelect } from "../components/common/MonthSelect";
+import { PayrollPulse } from "../components/overview/PayrollPulse";
+import { AttendanceHeatStrip } from "../components/overview/AttendanceHeatStrip";
+import { WorkforceMix } from "../components/overview/WorkforceMix";
+import { RecentJoiners } from "../components/overview/RecentJoiners";
+import { GratuityGlance } from "../components/overview/GratuityGlance";
+import "../styles/overview.css";
 
 export function OverviewPage() {
   const { data, loading } = useWorkforceData();
@@ -125,6 +131,19 @@ export function OverviewPage() {
           </div>
           <HeadcountMiniChart data={employeeData.headcountByDepartment} height={180} />
         </div>
+      </div>
+
+      <SectionHeader index="03" title="Payroll rhythm" />
+      <PayrollPulse data={payrollMonthly} />
+
+      <SectionHeader index="04" title="People and presence" />
+      <div className="chart-grid">
+        <AttendanceHeatStrip data={attendanceDaily} />
+        <WorkforceMix data={employeeData} />
+      </div>
+      <div className="chart-grid ov-people-row">
+        <RecentJoiners employees={employeeData.employees} />
+        <GratuityGlance report={employeeData.gratuity} />
       </div>
     </>
   );

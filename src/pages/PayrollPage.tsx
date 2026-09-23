@@ -19,6 +19,7 @@ import {
   CYCLE_META,
   formatMonthKey,
   formatRs,
+  trunc2,
   pctChange,
   type CycleFilter,
 } from "../components/payroll/payrollFormat";
@@ -32,7 +33,7 @@ function Delta({ current, previous, label }: { current: number; previous?: numbe
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "■";
   return (
     <span className={`py-delta ${dir}`}>
-      <span aria-hidden="true">{arrow}</span> {Math.abs(pct).toFixed(2)}% {label}
+      <span aria-hidden="true">{arrow}</span> {trunc2(Math.abs(pct))}% {label}
     </span>
   );
 }
@@ -315,7 +316,7 @@ export function PayrollPage() {
               {monthName} · {deptRows.length} departments · {formatRs(deptTotal)}
               {topDept && deptTotal > 0 && (
                 <>
-                  {" "}· highest {topDept.department} ({((topDept.sortValue / deptTotal) * 100).toFixed(2)}%)
+                  {" "}· highest {topDept.department} ({trunc2((topDept.sortValue / deptTotal) * 100)}%)
                 </>
               )}
             </div>
