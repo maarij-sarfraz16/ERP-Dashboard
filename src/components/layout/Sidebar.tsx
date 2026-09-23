@@ -15,7 +15,7 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="brand">
         <span className="brand-mark">ATS Synthetic</span>
-        <span className="brand-sub">WORKFORCE OPS</span>
+        <span className="brand-sub">HRMS DASHBOARD</span>
       </div>
 
       <nav className="nav-group">

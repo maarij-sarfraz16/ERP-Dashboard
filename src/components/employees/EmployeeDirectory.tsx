@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Employee, EmployeeStatus } from "../../data/employeeData";
 import { colorForIndex } from "./empPalette";
 import { AttendanceSparkline } from "./AttendanceSparkline";
+import { EmployeeAvatar } from "./EmployeeAvatar";
 
 const STATUS_LABEL: Record<EmployeeStatus, string> = {
   active: "Active",
@@ -96,9 +97,7 @@ export function EmployeeDirectory({ employees, departments }: { employees: Emplo
           const deptIndex = departments.indexOf(e.department);
           return (
             <div className="emp-row" key={e.id}>
-              <span className="emp-avatar" style={{ background: colorForIndex(deptIndex) }}>
-                {e.initials}
-              </span>
+              <EmployeeAvatar employee={e} color={colorForIndex(deptIndex)} />
               <div>
                 <div className="emp-row-name">{e.name}</div>
                 <div className="emp-row-role">

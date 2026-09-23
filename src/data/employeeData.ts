@@ -11,6 +11,8 @@ export interface Employee {
   id: string;
   name: string;
   initials: string;
+  /** Absolute URL of the employee's photo, or null when none is on file. */
+  photoUrl: string | null;
   role: string;
   department: string;
   employmentType: EmploymentType;
@@ -108,6 +110,7 @@ function buildEmployees(): Employee[] {
       id: `emp-${1000 + i}`,
       name,
       initials: initialsOf(name),
+      photoUrl: null,
       role,
       department,
       employmentType,

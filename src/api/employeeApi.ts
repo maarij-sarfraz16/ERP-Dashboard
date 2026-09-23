@@ -1,7 +1,7 @@
 // Builds `EmployeeApiResponse` (the exact contract `useEmployeeData` returned
 // from mock data) out of Frappe HRMS doctypes: Employee + Attendance.
 
-import { getCount, getList, optional } from "./frappeClient";
+import { frappeFileUrl, getCount, getList, optional } from "./frappeClient";
 import {
   fetchDailyAttendance,
   foldByDate,
@@ -39,6 +39,8 @@ interface RawEmployee {
   employment_type: string | null;
   date_of_joining: string | null;
   status: string | null;
+  /** Frappe file path, e.g. `/files/1001.png` or `/private/files/1004.JPG`. */
+  image: string | null;
 }
 
 /** `{ [field]: value, count: n }` from a grouped count query. */
@@ -138,6 +140,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
           "employment_type",
           "date_of_joining",
           "status",
+          "image",
         ],
         orderBy: "date_of_joining desc",
         limit: 0,
@@ -216,6 +219,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
       id: raw.name,
       name,
       initials: initialsOf(name),
+      photoUrl: frappeFileUrl(raw.image),
       role: raw.designation?.trim() || "—",
       department: cleanDepartment(raw.department),
       employmentType: classifyEmploymentType(raw.employment_type),

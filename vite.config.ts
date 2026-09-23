@@ -6,6 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.VITE_API_BASE_URL ?? ''
   const useProxy = env.VITE_USE_DEV_PROXY !== 'false'
+  const apiKey = env.VITE_FRAPPE_API_KEY ?? ''
+  const apiSecret = env.VITE_FRAPPE_API_SECRET ?? ''
 
   return {
     plugins: [react()],
@@ -33,6 +35,15 @@ export default defineConfig(({ mode }) => {
                 target,
                 changeOrigin: true,
                 rewrite: (path: string) => path.replace(/^\/frappe-api/, ''),
+                // Employee photos under `/private/files/` are 403 without
+                // auth, and an `<img>` tag cannot attach the token header the
+                // API calls use. Add it here so photo requests routed through
+                // the proxy are authenticated too (API calls already send the
+                // same token, so this is a no-op for them).
+                headers:
+                  apiKey && apiSecret
+                    ? { Authorization: `token ${apiKey}:${apiSecret}` }
+                    : undefined,
               },
             }
           : undefined,

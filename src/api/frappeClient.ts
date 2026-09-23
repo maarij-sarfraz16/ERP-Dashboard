@@ -285,6 +285,23 @@ export async function tracked<T>(task: Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Absolute URL for a file path as Frappe stores it on a doc (`/files/x.png`
+ * or `/private/files/x.jpg`), for use in `<img src>`.
+ *
+ * Private files need auth, and an `<img>` tag cannot send the token header.
+ * In dev the proxy injects it (see `vite.config.ts`), so both public and
+ * private photos load. A production build hits Frappe directly, where a
+ * private photo only loads if the browser already holds a Frappe session
+ * cookie for that host; public `/files/` photos always load.
+ */
+export function frappeFileUrl(path: string | null | undefined): string | null {
+  const trimmed = (path ?? "").trim();
+  if (!trimmed || !BASE_URL) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `${BASE_URL}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
+}
+
 /** The Frappe site this app talks to, for display in diagnostics. */
 export const frappeBaseUrl = CONFIGURED_URL;
 
