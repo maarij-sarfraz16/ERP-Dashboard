@@ -1,0 +1,533 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* Employees gets its own visual identity — separate palette and type from
+   the rest of the app — while reusing the shared shell, PageHead and
+   SectionHeader components for structural consistency. */
+
+.employees-page {
+  --emp-ink: #16211c;
+  --emp-paper: #eef2ec;
+  --emp-paper-raised: #f7f9f5;
+  --emp-line: #d6ddd1;
+  --emp-line-strong: #aab5a2;
+  --emp-muted: #5b6a5c;
+
+  --emp-moss: #2f6d5c;
+  --emp-plum: #6a4d79;
+  --emp-coral: #d1476b;
+  --emp-gold: #b9862f;
+
+  --emp-moss-bg: rgba(47, 109, 92, 0.13);
+  --emp-plum-bg: rgba(106, 77, 121, 0.13);
+  --emp-coral-bg: rgba(209, 71, 107, 0.13);
+  --emp-gold-bg: rgba(185, 134, 47, 0.16);
+
+  --emp-font-display: "Fraunces", "Georgia", serif;
+  --emp-font-body: "Work Sans", "Segoe UI", sans-serif;
+  --emp-font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  font-family: var(--emp-font-body);
+  color: var(--emp-ink);
+}
+
+:root[data-theme="dark"] .employees-page {
+  --emp-ink: #eef2ec;
+  --emp-paper: #141a15;
+  --emp-paper-raised: #1b221c;
+  --emp-line: #2c352d;
+  --emp-line-strong: #46523f;
+  --emp-muted: #9fac9c;
+
+  --emp-moss: #5fa38c;
+  --emp-plum: #a888ba;
+  --emp-coral: #e58aa2;
+  --emp-gold: #d4a856;
+
+  --emp-moss-bg: rgba(95, 163, 140, 0.16);
+  --emp-plum-bg: rgba(168, 136, 186, 0.16);
+  --emp-coral-bg: rgba(229, 138, 162, 0.16);
+  --emp-gold-bg: rgba(212, 168, 86, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .employees-page {
+    --emp-ink: #eef2ec;
+    --emp-paper: #141a15;
+    --emp-paper-raised: #1b221c;
+    --emp-line: #2c352d;
+    --emp-line-strong: #46523f;
+    --emp-muted: #9fac9c;
+
+    --emp-moss: #5fa38c;
+    --emp-plum: #a888ba;
+    --emp-coral: #e58aa2;
+    --emp-gold: #d4a856;
+
+    --emp-moss-bg: rgba(95, 163, 140, 0.16);
+    --emp-plum-bg: rgba(168, 136, 186, 0.16);
+    --emp-coral-bg: rgba(229, 138, 162, 0.16);
+    --emp-gold-bg: rgba(212, 168, 86, 0.18);
+  }
+}
+
+.employees-page .page-head {
+  border-bottom-color: var(--emp-line);
+}
+
+.employees-page .page-head h1 {
+  font-family: var(--emp-font-display);
+  font-weight: 600;
+  font-size: 28px;
+}
+
+.employees-page .section-header {
+  align-items: baseline;
+}
+
+.employees-page .section-title {
+  font-family: var(--emp-font-body);
+  color: var(--emp-muted);
+}
+
+.employees-page .section-rule {
+  background: repeating-linear-gradient(to right, var(--emp-line) 0, var(--emp-line) 4px, transparent 4px, transparent 9px);
+}
+
+.employees-page .section-index {
+  border-color: var(--emp-line);
+  color: var(--emp-muted);
+}
+
+/* ------------------------------------------------------------- top bar */
+
+.emp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.emp-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--emp-paper-raised);
+  border: 1px solid var(--emp-line);
+  border-radius: 999px;
+  padding: 8px 16px;
+  min-width: 220px;
+  flex: 1;
+  max-width: 340px;
+}
+
+.emp-search input {
+  border: none;
+  background: none;
+  outline: none;
+  font-family: var(--emp-font-body);
+  font-size: 14px;
+  color: var(--emp-ink);
+  width: 100%;
+}
+
+.emp-search svg {
+  color: var(--emp-muted);
+  flex-shrink: 0;
+}
+
+.emp-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emp-chip {
+  font-family: var(--emp-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--emp-line);
+  background: var(--emp-paper-raised);
+  color: var(--emp-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.emp-chip:hover {
+  border-color: var(--emp-line-strong);
+  color: var(--emp-ink);
+}
+
+.emp-chip.active {
+  background: var(--emp-moss);
+  border-color: var(--emp-moss);
+  color: #f7f9f5;
+}
+
+/* --------------------------------------------------------------- hero */
+
+.emp-hero {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 36px;
+  padding: 28px 0 26px;
+  border-bottom: 1px solid var(--emp-line);
+}
+
+.emp-hero-figure {
+  font-family: var(--emp-font-display);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--emp-moss);
+  letter-spacing: -0.01em;
+}
+
+.emp-hero-caption {
+  font-family: var(--emp-font-body);
+  font-size: 14.5px;
+  color: var(--emp-muted);
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+.emp-hero-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.emp-hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.emp-hero-stat-value {
+  font-family: var(--emp-font-mono);
+  font-size: 21px;
+  font-weight: 500;
+}
+
+.emp-hero-stat-label {
+  font-size: 12px;
+  color: var(--emp-muted);
+}
+
+/* --------------------------------------------------------- composition */
+
+.emp-seg-bar {
+  display: flex;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--emp-line);
+}
+
+.emp-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  border-right: 2px solid var(--emp-paper);
+  transition: filter 120ms ease;
+}
+
+.emp-seg:last-child {
+  border-right: none;
+}
+
+.emp-seg:hover {
+  filter: brightness(1.08);
+}
+
+.emp-seg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin-top: 14px;
+}
+
+.emp-seg-legend-item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.emp-seg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.emp-seg-legend-name {
+  color: var(--emp-ink);
+  font-weight: 500;
+}
+
+.emp-seg-legend-count {
+  font-family: var(--emp-font-mono);
+  color: var(--emp-muted);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------- layout */
+
+.emp-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.emp-panel {
+  background: var(--emp-paper-raised);
+  border: 1px solid var(--emp-line);
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+
+.emp-panel-title {
+  font-family: var(--emp-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.emp-panel-sub {
+  font-size: 12.5px;
+  color: var(--emp-muted);
+  margin-bottom: 14px;
+}
+
+/* ----------------------------------------------------------- directory */
+
+.emp-directory-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.emp-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--emp-line);
+}
+
+.emp-row:last-child {
+  border-bottom: none;
+}
+
+.emp-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--emp-font-display);
+  font-weight: 600;
+  font-size: 13px;
+  color: #f7f9f5;
+  flex-shrink: 0;
+}
+
+.emp-row-name {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.emp-row-role {
+  font-size: 12.5px;
+  color: var(--emp-muted);
+  margin-top: 1px;
+}
+
+.emp-row-tags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-self: end;
+  text-align: right;
+}
+
+.emp-status-tag {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--emp-font-mono);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.emp-status-tag.active {
+  background: var(--emp-moss-bg);
+  color: var(--emp-moss);
+}
+
+.emp-status-tag.on-leave {
+  background: var(--emp-gold-bg);
+  color: var(--emp-gold);
+}
+
+.emp-status-tag.exited {
+  background: var(--emp-coral-bg);
+  color: var(--emp-coral);
+}
+
+.emp-row-join {
+  font-family: var(--emp-font-mono);
+  font-size: 11px;
+  color: var(--emp-muted);
+}
+
+.emp-spark {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.emp-spark-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.emp-empty {
+  padding: 28px 4px;
+  text-align: center;
+  color: var(--emp-muted);
+  font-size: 13.5px;
+}
+
+/* -------------------------------------------------------------- side */
+
+.emp-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.emp-split-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.emp-split-label {
+  width: 84px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.emp-split-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--emp-line);
+  overflow: hidden;
+}
+
+.emp-split-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.emp-split-count {
+  font-family: var(--emp-font-mono);
+  font-size: 12px;
+  color: var(--emp-muted);
+  width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.emp-hires-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 44px;
+}
+
+.emp-hires-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.emp-hires-dot {
+  width: 100%;
+  max-width: 12px;
+  border-radius: 3px;
+  background: var(--emp-gold);
+}
+
+.emp-hires-month {
+  font-size: 9.5px;
+  color: var(--emp-muted);
+  font-family: var(--emp-font-mono);
+}
+
+.emp-arc-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.emp-arc-value {
+  font-family: var(--emp-font-display);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.emp-arc-label {
+  font-size: 12px;
+  color: var(--emp-muted);
+}
+
+/* --------------------------------------------------------- responsive */
+
+@media (max-width: 980px) {
+  .emp-layout {
+    grid-template-columns: 1fr;
+  }
+  .emp-hero-stats {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .emp-hero {
+    gap: 18px;
+  }
+  .emp-hero-figure {
+    font-size: 42px;
+  }
+  .emp-row {
+    grid-template-columns: 36px 1fr;
+  }
+  .emp-row-tags {
+    grid-column: 1 / 3;
+    justify-self: start;
+    justify-content: flex-start;
+    margin-top: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .employees-page .load-in {
+    animation: load-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}

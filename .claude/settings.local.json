@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/validate_palette.js \"#4A8CC7,#D9A23A,#B84A2E\" --mode dark)"
+    ]
+  }
+}

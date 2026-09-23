@@ -1,0 +1,132 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: light;
+
+  /* -- palette (validated categorical set, light mode) -- */
+  --c-graphite: #1b1d1e;
+  --c-concrete: #edebe6;
+  --c-concrete-raised: #f7f6f3;
+  --c-steel: #5c6165;
+  --c-steel-soft: #c9c5bc;
+
+  --c-indigo: #1f5c99;
+  --c-amber: #e0932c;
+  --c-rust: #b4552f;
+  --c-green: #4f7a5b;
+
+  --bg: var(--c-concrete);
+  --surface: var(--c-concrete-raised);
+  --surface-recessed: #e2ded6;
+  --border: var(--c-steel-soft);
+  --border-strong: var(--c-steel);
+
+  --ink: var(--c-graphite);
+  --ink-muted: var(--c-steel);
+  --ink-on-accent: #f7f6f3;
+
+  --accent: var(--c-amber);
+  --data-indigo: var(--c-indigo);
+  --data-amber: var(--c-amber);
+  --data-rust: var(--c-rust);
+  --data-green: var(--c-green);
+
+  --status-good: var(--c-green);
+  --status-good-bg: rgba(79, 122, 91, 0.12);
+  --status-late: var(--c-amber);
+  --status-late-bg: rgba(224, 147, 44, 0.16);
+  --status-absent: var(--c-rust);
+  --status-absent-bg: rgba(180, 85, 47, 0.13);
+
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --shadow-card: 0 1px 0 rgba(27, 29, 30, 0.06);
+
+  --sidebar-w: 232px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-graphite: #eeece7;
+  --c-concrete: #17181a;
+  --c-concrete-raised: #1f2123;
+  --c-steel: #9a9e9e;
+  --c-steel-soft: #33363a;
+
+  --c-indigo: #4a8cc7;
+  --c-amber: #bf8628;
+  --c-rust: #b0442a;
+  --c-green: #6fa37d;
+
+  --bg: var(--c-concrete);
+  --surface: var(--c-concrete-raised);
+  --surface-recessed: #131415;
+  --border: var(--c-steel-soft);
+  --border-strong: #4b4e52;
+
+  --ink: var(--c-graphite);
+  --ink-muted: var(--c-steel);
+  --ink-on-accent: #17181a;
+
+  --accent: var(--c-amber);
+  --data-indigo: var(--c-indigo);
+  --data-amber: var(--c-amber);
+  --data-rust: var(--c-rust);
+  --data-green: var(--c-green);
+
+  --status-good: var(--c-green);
+  --status-good-bg: rgba(111, 163, 125, 0.16);
+  --status-late: var(--c-amber);
+  --status-late-bg: rgba(191, 134, 40, 0.18);
+  --status-absent: var(--c-rust);
+  --status-absent-bg: rgba(176, 68, 42, 0.2);
+
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --c-graphite: #eeece7;
+    --c-concrete: #17181a;
+    --c-concrete-raised: #1f2123;
+    --c-steel: #9a9e9e;
+    --c-steel-soft: #33363a;
+
+    --c-indigo: #4a8cc7;
+    --c-amber: #bf8628;
+    --c-rust: #b0442a;
+    --c-green: #6fa37d;
+
+    --bg: var(--c-concrete);
+    --surface: var(--c-concrete-raised);
+    --surface-recessed: #131415;
+    --border: var(--c-steel-soft);
+    --border-strong: #4b4e52;
+
+    --ink: var(--c-graphite);
+    --ink-muted: var(--c-steel);
+    --ink-on-accent: #17181a;
+
+    --accent: var(--c-amber);
+    --data-indigo: var(--c-indigo);
+    --data-amber: var(--c-amber);
+    --data-rust: var(--c-rust);
+    --data-green: var(--c-green);
+
+    --status-good: var(--c-green);
+    --status-good-bg: rgba(111, 163, 125, 0.16);
+    --status-late: var(--c-amber);
+    --status-late-bg: rgba(191, 134, 40, 0.18);
+    --status-absent: var(--c-rust);
+    --status-absent-bg: rgba(176, 68, 42, 0.2);
+
+    --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4);
+  }
+}
