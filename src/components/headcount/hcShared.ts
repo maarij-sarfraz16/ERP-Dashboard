@@ -9,6 +9,10 @@ export interface CountRow {
 
 /** Frappe returns blanks as null/""; the source dashboard printed "NULL". */
 export const NOT_SET = "Not set";
+/** Blank `salary_mode` — neither Bank nor Cash chosen on the employee record. */
+export const NO_SALARY_MODE = "No salary mode";
+/** `salary_mode` is Bank but `bank_name` is blank on the employee record. */
+export const NO_BANK_NAME = "No bank name";
 
 export function labelOf(value: string): string {
   return value || NOT_SET;
@@ -28,6 +32,39 @@ export function countBy(
   return [...counts.entries()]
     .map(([key, count]) => ({ key, label: label(key), count }))
     .sort((a, b) => b.count - a.count || (a.key ? 0 : 1) - (b.key ? 0 : 1));
+}
+
+/**
+ * Employees by bank, for the "Salary Payment Mode · Bank" card.
+ *
+ * Only employees whose `salary_mode` is `Bank` are counted — that is Frappe's
+ * own rule (`bank_name` is shown on the Employee form only when the salary
+ * mode is Bank), so cash-paid staff, who have no bank by definition, are not
+ * reported as a bank that is "Not set".
+ *
+ * `bank_name` is free text in Frappe (a Data field, no Bank master), so the
+ * same bank appears under differently-cased spellings. Rows are grouped the
+ * way the database groups them — its collation compares text case- and
+ * trailing-space-insensitively — and labelled with the spelling HR used most
+ * often. Genuinely different names stay separate; nothing is renamed.
+ * Blank bank names are one "No bank name" row, ranked last.
+ */
+export function bankBreakdown(employees: HeadcountEmployee[]): CountRow[] {
+  const groups = new Map<string, { count: number; spellings: Map<string, number> }>();
+  for (const e of employees) {
+    if (e.salaryMode !== "Bank") continue;
+    const key = e.bankName.trimEnd().toLowerCase();
+    const group = groups.get(key) ?? { count: 0, spellings: new Map<string, number>() };
+    group.count += 1;
+    group.spellings.set(e.bankName, (group.spellings.get(e.bankName) ?? 0) + 1);
+    groups.set(key, group);
+  }
+  return [...groups.entries()]
+    .map(([key, { count, spellings }]) => {
+      const label = [...spellings.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      return { key, label: label || NO_BANK_NAME, count };
+    })
+    .sort((a, b) => (a.key ? 0 : 1) - (b.key ? 0 : 1) || b.count - a.count);
 }
 
 export function fmtInt(n: number): string {

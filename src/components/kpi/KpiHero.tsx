@@ -17,7 +17,9 @@ export function KpiHero({ kpis }: { kpis: Kpis }) {
           absent={kpis.absentToday}
         />
         <p className="chart-sub">
-          Present of {kpis.totalEmployees.toLocaleString()} active employees · submitted attendance
+          Present of {kpis.totalEmployees.toLocaleString()} active employees ·{" "}
+          {kpis.attendanceRecordsPosted.toLocaleString()} attendance records posted
+          {kpis.attendanceRecordsPosted < kpis.totalEmployees ? " so far" : ""}
         </p>
       </div>
     </div>

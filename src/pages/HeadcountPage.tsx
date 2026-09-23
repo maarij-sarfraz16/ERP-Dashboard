@@ -8,7 +8,7 @@ import { SplitMeter } from "../components/headcount/SplitMeter";
 import { RankedBars } from "../components/headcount/RankedBars";
 import { AttendanceRing } from "../components/headcount/AttendanceRing";
 import { PeopleList } from "../components/headcount/PeopleList";
-import { countBy, fmtDate, fmtInt, labelOf } from "../components/headcount/hcShared";
+import { bankBreakdown, countBy, fmtDate, fmtInt, labelOf, NO_SALARY_MODE } from "../components/headcount/hcShared";
 
 /** `null` = "All". A string (possibly `""` for blank) = that exact value. */
 type Filter = string | null;
@@ -126,10 +126,15 @@ export function HeadcountPage() {
       .map(([key, count]) => ({ key, label: key, count }))
       .sort((a, b) => b.count - a.count);
 
+    // Pay mode and bank are money cards: only Active employees are paid, so
+    // Inactive / Left staff are never counted here, whatever the Status filter
+    // says. (The ATS main dashboard counts salary_mode over every Employee,
+    // which is why its Cash/Bank totals run higher than these.)
+    const onPayroll = filtered.filter((e) => e.status === "Active");
     return {
       status: countBy(filtered, (e) => e.status),
-      salaryMode: countBy(filtered, (e) => e.salaryMode),
-      bank: countBy(filtered, (e) => e.bankName),
+      salaryMode: countBy(onPayroll, (e) => e.salaryMode, (v) => v || NO_SALARY_MODE),
+      bank: bankBreakdown(onPayroll),
       gender: countBy(filtered, (e) => e.gender),
       attendance: attendanceRows,
       unmarked,
@@ -149,8 +154,9 @@ export function HeadcountPage() {
     setFilters((f) => ({ ...f, [key]: f[key] === value ? null : value }));
 
   const anyFilter = Object.values(filters).some((v) => v !== null);
+  const statusLabel = filters.status === null ? "All" : labelOf(filters.status);
   const scopeText = [
-    `Status=${filters.status === null ? "All" : labelOf(filters.status)}`,
+    `Status=${statusLabel}`,
     `Department=${filters.department === null ? "All" : cleanDepartment(filters.department) || "Not set"}`,
     filters.reason !== null && `Reason for Exit=${labelOf(filters.reason)}`,
     filters.marital !== null && `Marital Status=${labelOf(filters.marital)}`,
@@ -182,11 +188,11 @@ export function HeadcountPage() {
     );
   }
 
+  // `attendanceDate` is "yesterday" as the Frappe site defines it, whatever
+  // the browser's clock says — the same day the ATS main dashboard shows.
   const attendanceLabel = data.attendanceDate
-    ? data.attendanceDate === isoDaysAgo(1)
-      ? `Yesterday · ${fmtDate(data.attendanceDate)}`
-      : `Latest posted · ${fmtDate(data.attendanceDate)}`
-    : "No attendance posted in the last week";
+    ? `Yesterday · ${fmtDate(data.attendanceDate)}`
+    : "No attendance date available";
 
   return (
     <div className="hc-page">
@@ -241,7 +247,7 @@ export function HeadcountPage() {
         {/* ── By Head + By Status + By Gender ─────────────────────────── */}
         <section className="hc-card hc-hero load-in load-in-1">
           <header>
-            <h2>By Head ({filters.status === null ? "All" : labelOf(filters.status)})</h2>
+            <h2>By Head ({statusLabel})</h2>
           </header>
           <div className="hc-hero-number">{fmtInt(filtered.length)}</div>
           <p className="hc-hero-sub">
@@ -251,7 +257,7 @@ export function HeadcountPage() {
           <h3 className="hc-subhead">By Status wise</h3>
           <SplitMeter rows={view.status} active={filters.status} onPick={toggle("status")} />
           <h3 className="hc-subhead hc-subhead-gap">
-            By Gender, {filters.status === null ? "All" : labelOf(filters.status)}
+            By Gender, {statusLabel}
           </h3>
           <SplitMeter rows={view.gender} />
         </section>
@@ -259,7 +265,7 @@ export function HeadcountPage() {
         {/* ── Salary Payment Mode ─────────────────────────────────────── */}
         <section className="hc-card load-in load-in-2">
           <header>
-            <h2>Salary Payment Mode</h2>
+            <h2>Salary Payment Mode (Active)</h2>
             <span className="hc-tag">Mode</span>
           </header>
           <SplitMeter rows={view.salaryMode} />
@@ -267,7 +273,7 @@ export function HeadcountPage() {
 
         <section className="hc-card hc-span-2 load-in load-in-2">
           <header>
-            <h2>Salary Payment Mode</h2>
+            <h2>Salary Payment Mode (Active)</h2>
             <span className="hc-tag">Bank</span>
           </header>
           <RankedBars rows={view.bank} initial={6} color="var(--hc-indigo)" />
@@ -314,10 +320,6 @@ export function HeadcountPage() {
           />
         </section>
       </div>
-
-      <p className="hc-source">
-        Source: HR Employee and Attendance records, read live. Blank fields are shown as “Not set”.
-      </p>
     </div>
   );
 }

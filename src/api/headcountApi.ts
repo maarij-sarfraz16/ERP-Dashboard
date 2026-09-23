@@ -6,7 +6,7 @@
 // ~2.3k employees and one day of attendance is small enough for that.
 
 import { frappeFileUrl, getList } from "./frappeClient";
-import { isoDaysAgo, toNumber } from "./frappeMappers";
+import { fetchAttendanceDaySummary } from "./attendanceDay";
 
 export interface HeadcountEmployee {
   id: string;
@@ -27,7 +27,10 @@ export interface HeadcountEmployee {
 
 export interface HeadcountData {
   employees: HeadcountEmployee[];
-  /** The attendance day summarised — yesterday, or the latest posted day. */
+  /**
+   * The attendance day summarised: yesterday in the Frappe site's time zone,
+   * the same day the Overview tiles and the ATS main dashboard describe.
+   */
   attendanceDate: string | null;
   /**
    * employee id → the `status` of each of their Attendance records on
@@ -55,31 +58,8 @@ interface RawEmployee {
 
 const clean = (v: string | null | undefined) => (v ?? "").trim();
 
-/**
- * Attendance is posted a day in arrears, and occasionally not at all over a
- * weekend/holiday. Use yesterday when it has rows; otherwise the most recent
- * day in the last week that does, so the panel never reads as an empty 0.
- */
-async function pickAttendanceDate(): Promise<string | null> {
-  const yesterday = isoDaysAgo(1);
-  const rows = await getList<{ attendance_date: string; count: number | string }>("Attendance", {
-    fields: ["attendance_date", "count(name) as count"],
-    filters: [
-      ["attendance_date", ">=", isoDaysAgo(8)],
-      ["attendance_date", "<=", yesterday],
-      ["docstatus", "=", 1],
-    ],
-    groupBy: "attendance_date",
-    orderBy: "attendance_date desc",
-    limit: 0,
-  });
-  const posted = rows.filter((r) => toNumber(r.count) > 0).map((r) => r.attendance_date);
-  if (posted.includes(yesterday)) return yesterday;
-  return posted.sort().reverse()[0] ?? null;
-}
-
 export async function fetchHeadcountData(): Promise<HeadcountData> {
-  const [rawEmployees, attendanceDate] = await Promise.all([
+  const [rawEmployees, { date: attendanceDate }] = await Promise.all([
     getList<RawEmployee>("Employee", {
       fields: [
         "name",
@@ -99,7 +79,8 @@ export async function fetchHeadcountData(): Promise<HeadcountData> {
       orderBy: "name asc",
       limit: 0,
     }),
-    pickAttendanceDate(),
+    // One definition of "yesterday" for the whole app — see attendanceDay.ts.
+    fetchAttendanceDaySummary(),
   ]);
 
   const attendanceRows = attendanceDate

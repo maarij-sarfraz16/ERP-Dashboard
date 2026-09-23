@@ -54,11 +54,13 @@ React + TypeScript + Vite front end for a Frappe / HR (HRMS) backend.
 | Path | Role |
 | --- | --- |
 | `src/api/frappeClient.ts` | The only place that calls `fetch`. Applies base URL, `Authorization: token key:secret`, timeout and error normalisation. |
+| `src/api/attendanceDay.ts` | The one definition of "yesterday" and its present/absent/late figures — read from the ATS Number Cards, never computed here. |
+| `src/api/attendanceReconciliation.test.ts` | `npm test`: fails if any page disagrees with the ATS Overview workspace (totals *and* employee-id sets). |
 | `src/api/employeeApi.ts` | Frappe rows → `EmployeeApiResponse` |
 | `src/api/workforceApi.ts` | Frappe rows → `WorkforceApiResponse` |
 | `src/api/connectionStatus.ts` | Shared store driving the backend-unreachable screen |
 | `src/api/testConnection.ts` | `window.testFrappeConnection()` |
-| `src/hooks/use*Data.ts` | Unchanged `{ data, loading, error }` contract for components |
+| `src/hooks/use*Data.ts` | Unchanged `{ data, loading, error }` contract for components; all built on `useLiveData`, which re-reads Frappe every 5 minutes and when the tab regains focus |
 | `src/data/*.ts` | Response type definitions (+ the original mock payloads, now unused) |
 
 Components are unaware of Frappe: the hooks return the same shapes the mock
@@ -77,11 +79,26 @@ were driven by what the live site actually contains.
   strip has nowhere to show "not a working day".
 - **Lateness comes from the `late_entry` flag, not `status`.** HRMS has no
   "Late" status; ~11% of `Present` rows carry `late_entry = 1`.
-- **"Today" means the latest fully-posted day.** Attendance lands a day in
-  arrears, and the most recent day is usually partial — presences are entered
-  before absences are marked. The adapters walk back to the latest day whose
-  row count covers ≥90% of the active roster, so presence and absence come from
-  the same complete day.
+- **The headline attendance figures ARE the ATS main dashboard's.** The
+  Overview tiles, the Employees page presence % and the Head Count attendance
+  summary all describe *yesterday* — the calendar day before today in the
+  Frappe site's time zone (Asia/Karachi), which is what the "Absent Yesterday",
+  "Total Present (Yesterday)" and "Late Entry (Yesterday)" Number Cards on the
+  ATS *Overview* workspace count. `src/api/attendanceDay.ts` fetches those
+  Number Card documents and has Frappe evaluate them (the same
+  `number_card.get_result` call the desk widget makes), and reads the date back
+  from the server's own `Timespan: yesterday` filter. Nothing about the day or
+  the counts is decided in the browser, so the two dashboards cannot drift:
+  edit a card in Frappe and both change together. `npm test` proves it against
+  the live site.
+
+  The price is that early in the morning the figures are partial — attendance
+  is posted in batches until ~10:30 the following day, presences before
+  absences — exactly as they are on the ATS dashboard. The tile says how many
+  records have been posted so far rather than silently showing an older day.
+  (An earlier version of this app did the latter, picking the latest day with
+  ≥90% of the roster posted; that is why it could show a different day, and a
+  different absent count, from the main dashboard.)
 - **Payroll figures use the last complete month, not the current one.** The
   site runs two overlapping cycles: semi-monthly (1–15, 16–31) for ~320
   daily-wage staff and monthly for ~1,850 permanent staff. The monthly run is
@@ -109,4 +126,5 @@ it currently reads as a large decline.
 npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build
 npm run lint     # oxlint
+npm test         # reconciliation against the live Frappe site in .env
 ```

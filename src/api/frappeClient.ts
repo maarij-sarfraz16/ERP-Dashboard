@@ -224,6 +224,14 @@ export async function getList<T>(doctype: string, options: ListOptions = {}): Pr
   return body.data ?? [];
 }
 
+/** `GET {base_url}/api/resource/{Doctype}/{name}` — one full document. */
+export async function getDoc<T>(doctype: string, name: string): Promise<T> {
+  const body = await frappeFetch<FrappeEnvelope<T>>(
+    `/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`,
+  );
+  return body.data;
+}
+
 /** `GET {base_url}/api/method/{dotted.path}` — whitelisted server methods. */
 export async function callMethod<T>(
   dottedPath: string,

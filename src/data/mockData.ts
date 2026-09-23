@@ -8,14 +8,24 @@ export type EmploymentType = "Permanent" | "Daily Wage";
 
 export interface Kpis {
   totalEmployees: number;
-  /** The attendance day the three counts below describe (normally yesterday). */
+  /**
+   * The attendance day the three counts below describe: the calendar
+   * "yesterday" in the Frappe site's time zone, as the ATS Overview
+   * workspace defines it. Null only if the server could not say.
+   */
   attendanceDate: string | null;
-  /** Attendance `status = Present` — ATS card "Total Present (Yesterday)". */
+  /** ATS card "Total Present (Yesterday)", evaluated by Frappe. */
   presentToday: number;
-  /** Attendance `status = Absent` — ATS card "Absent Yesterday". */
+  /** ATS card "Absent Yesterday", evaluated by Frappe. */
   absentToday: number;
-  /** Attendance `late_entry = 1`, any status — ATS card "Late Entry (Yesterday)". */
+  /** ATS card "Late Entry (Yesterday)", evaluated by Frappe. */
   lateToday: number;
+  /**
+   * Submitted Attendance rows on `attendanceDate`. Posting runs in batches
+   * through the following morning, so while this is well short of
+   * `totalEmployees` the three counts above are still filling in.
+   */
+  attendanceRecordsPosted: number;
   onPayrollThisCycle: number;
   presentPct: number;
   /** Employees whose date of joining is in the last 7 days. */
@@ -108,7 +118,7 @@ export interface WorkforceApiResponse {
   payrollMonthly: PayrollMonthPoint[];
   payrollDeptMonthly: PayrollDeptMonthPoint[];
   employmentTypeBreakdown: EmploymentTypePoint[];
-  /** ISO date of the most recent fully-posted attendance day, if any. */
+  /** The same day as `kpis.attendanceDate` — where the attendance log opens. */
   latestPostedDate: string | null;
   recentPayrollRuns: PayrollRun[];
 }

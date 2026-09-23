@@ -149,8 +149,6 @@ export function GratuityPanel({ report }: { report: GratuityReport | null }) {
       <Link to="/gratuity-report" className="emp-grat-details">
         View details — every employee →
       </Link>
-
-      <div className="emp-grat-note">Source: ATS report “Gratuity of Employee”. Amounts in PKR.</div>
     </div>
   );
 }

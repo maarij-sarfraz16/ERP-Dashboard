@@ -230,10 +230,6 @@ export function GratuityReportPage() {
             )}
           </table>
         </div>
-
-        <div className="emp-grat-note" style={{ marginTop: 14 }}>
-          Source: ATS report “Gratuity of Employee”. Amounts in PKR, exactly as reported.
-        </div>
       </div>
     </div>
   );

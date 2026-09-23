@@ -10,10 +10,9 @@ import {
   emptyAttendancePoint,
   fetchDailyAttendance,
   foldByDate,
-  latestCompleteDay,
-  totalsByDate,
   type AttendanceDailyRow,
 } from "./attendanceCommon";
+import { fetchAttendanceDaySummary } from "./attendanceDay";
 import {
   classifyEmploymentType,
   classifyPayrollCycle,
@@ -78,6 +77,7 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
 
   const [
     totalEmployees,
+    yesterday,
     newHires7d,
     dailyAttendance,
     payrollPeriods,
@@ -87,8 +87,14 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
   ] = await Promise.all([
     // Required: if the roster cannot be read (bad key, no permission) there is
     // no meaningful dashboard, so this failure propagates to the error screen
-    // rather than rendering a page full of zeros.
+    // rather than rendering a page full of zeros. Same filter as the ATS
+    // "Total Employees" card.
     getCount("Employee", [["status", "=", "Active"]]),
+
+    // Required too: the headline present/absent/late figures come from the
+    // ATS Number Cards themselves (see `attendanceDay.ts`). A locally computed
+    // stand-in could disagree with the main dashboard, so there is none.
+    fetchAttendanceDaySummary(),
 
     optional("New hires (7d)", getCount("Employee", [["date_of_joining", ">=", isoDaysAgo(7)]]), 0),
 
@@ -165,14 +171,6 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
   ]);
 
   const byDate = foldByDate(dailyAttendance);
-  const lastPosted = latestCompleteDay(byDate, totalsByDate(dailyAttendance), totalEmployees);
-  // Same definitions as the ATS cards: Present counts `status = Present`
-  // (late or not), and late counts every `late_entry` row whatever its status.
-  const dayRows = lastPosted ? dailyAttendance.filter((r) => r.attendance_date === lastPosted.date) : [];
-  const countRows = (keep: (r: AttendanceDailyRow) => boolean) =>
-    dayRows.filter(keep).reduce((sum, r) => sum + toNumber(r.count), 0);
-  const presentToday = countRows((r) => r.status === "Present");
-  const lateToday = countRows((r) => Boolean(r.late_entry));
 
   // The current calendar month is mid-cycle, so payroll figures are scoped to
   // the last complete month instead.
@@ -184,12 +182,14 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
 
   const kpis: Kpis = {
     totalEmployees,
-    attendanceDate: lastPosted?.date ?? null,
-    presentToday,
-    absentToday: countRows((r) => r.status === "Absent"),
-    lateToday,
+    attendanceDate: yesterday.date,
+    presentToday: yesterday.present,
+    absentToday: yesterday.absent,
+    lateToday: yesterday.late,
+    attendanceRecordsPosted: yesterday.recordsPosted,
     onPayrollThisCycle: paidEmployees.size,
-    presentPct: totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 1000) / 10 : 0,
+    presentPct:
+      totalEmployees > 0 ? Math.round((yesterday.present / totalEmployees) * 1000) / 10 : 0,
     employeesDelta7d: newHires7d,
   };
 
@@ -202,8 +202,8 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     payrollMonthly: buildPayrollMonthly(payrollCosts),
     payrollDeptMonthly: buildPayrollDeptMonthly(payrollCosts),
     employmentTypeBreakdown: buildEmploymentTypeBreakdown(monthSlips, employeeTypes),
-    // The log page opens on this day; "today" is usually not posted yet.
-    latestPostedDate: lastPosted?.date ?? null,
+    // The log page opens on the same day the headline tiles describe.
+    latestPostedDate: yesterday.date,
     recentPayrollRuns: buildRecentPayrollRuns(payrollPeriods),
   };
 }

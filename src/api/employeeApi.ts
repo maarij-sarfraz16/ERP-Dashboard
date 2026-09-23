@@ -4,14 +4,7 @@
 // a user-picked window, so they are fetched separately from the roster.
 
 import { frappeFileUrl, getCount, getList, optional } from "./frappeClient";
-import {
-  fetchDailyAttendance,
-  foldByDate,
-  latestCompleteDay,
-  recentAttendanceWindowStart,
-  totalsByDate,
-  type AttendanceDailyRow,
-} from "./attendanceCommon";
+import { fetchAttendanceDaySummary } from "./attendanceDay";
 import {
   classifyEmploymentType,
   cleanDepartment,
@@ -73,7 +66,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     totalActive,
     newHiresLast7d,
     newHiresThisQuarter,
-    presenceRows,
+    yesterday,
     joinDates,
     deptCounts,
     typeCounts,
@@ -103,13 +96,10 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
         getCount("Employee", [["date_of_joining", ">=", quarterStart()]]),
         0,
       ),
-      // Plant-wide presence for the most recent posted day — attendance here
-      // lands a day in arrears, so querying "today" would report 0%.
-      optional(
-        "Recent presence",
-        fetchDailyAttendance(recentAttendanceWindowStart()),
-        [] as AttendanceDailyRow[],
-      ),
+      // Plant-wide presence for yesterday, from the ATS Number Cards — the
+      // same figure the Overview page and the main dashboard show. Required,
+      // so a card that cannot be evaluated surfaces as an error, not as 0%.
+      fetchAttendanceDaySummary(),
       optional(
         "Hiring history",
         getList<{ date_of_joining: string | null }>("Employee", {
@@ -146,14 +136,6 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
       optional("Gratuity report", fetchGratuityReport(), null as GratuityReport | null),
     ]);
 
-  const lastPosted = latestCompleteDay(
-    foldByDate(presenceRows),
-    totalsByDate(presenceRows),
-    totalActive,
-  );
-  // `status = Present`, late or not — the ATS "Total Present" definition.
-  const presentOnLastPostedDay = lastPosted ? lastPosted.present + lastPosted.late : 0;
-
   const employees: Employee[] = rawEmployees.map((raw) => {
     const name = raw.employee_name?.trim() || raw.name;
     return {
@@ -176,9 +158,8 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     joinedLast7d: newHiresLast7d,
     dailyWageCount: employmentTypeSplit.find((s) => s.type === "Daily Wage")?.count ?? 0,
     newHiresThisQuarter,
-    presentTodayPct:
-      totalActive > 0 ? Math.round((presentOnLastPostedDay / totalActive) * 100) : 0,
-    presenceDate: lastPosted?.date ?? null,
+    presentTodayPct: totalActive > 0 ? Math.round((yesterday.present / totalActive) * 100) : 0,
+    presenceDate: yesterday.date,
     headcountByDepartment: buildHeadcountByDepartment(deptCounts),
     headcountByDesignation: buildHeadcountByDesignation(employees),
     employmentTypeSplit,

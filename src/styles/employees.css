@@ -808,13 +808,6 @@
   color: var(--emp-ink);
 }
 
-.emp-grat-note {
-  font-size: 11px;
-  color: var(--emp-muted);
-  padding-top: 10px;
-  border-top: 1px dashed var(--emp-line);
-}
-
 .emp-grat-details {
   align-self: flex-start;
   font-size: 12.5px;

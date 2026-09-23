@@ -5,7 +5,7 @@
 // and a full year comes back as ~1.5k aggregate rows.
 
 import { getList } from "./frappeClient";
-import { isoDaysAgo, toNumber } from "./frappeMappers";
+import { toNumber } from "./frappeMappers";
 import type { AttendancePoint } from "../data/mockData";
 
 export interface AttendanceDailyRow {
@@ -72,50 +72,6 @@ export function foldByDate(rows: AttendanceDailyRow[]): Map<string, AttendancePo
   return byDate;
 }
 
-/** Total rows per date — used to judge completeness. */
-export function totalsByDate(rows: AttendanceDailyRow[]): Map<string, number> {
-  const totals = new Map<string, number>();
-  for (const row of rows) {
-    totals.set(row.attendance_date, (totals.get(row.attendance_date) ?? 0) + toNumber(row.count));
-  }
-  return totals;
-}
-
-/** A day is treated as fully posted once it covers this much of the roster. */
-const COVERAGE_THRESHOLD = 0.9;
-
-/**
- * The most recent day whose attendance is actually finished being entered.
- *
- * Two traps this avoids:
- *  - Attendance is posted a day in arrears, so querying "today" returns no
- *    rows for most of the working day and the presence KPIs would read 0%.
- *  - The most recent day is often *partially* entered — presences get logged
- *    before absences are marked. Taking it at face value understates presence
- *    and badly understates absence.
- *
- * So: walk backwards to the latest day whose total record count covers at
- * least 90% of the active roster. Falls back to the latest day with any rows
- * when nothing clears the bar (a small or newly-populated site).
- */
-export function latestCompleteDay(
-  byDate: Map<string, AttendancePoint>,
-  totals: Map<string, number>,
-  rosterSize: number,
-): AttendancePoint | null {
-  const dates = [...byDate.keys()].sort().reverse();
-  if (dates.length === 0) return null;
-
-  if (rosterSize > 0) {
-    const needed = rosterSize * COVERAGE_THRESHOLD;
-    for (const date of dates) {
-      if ((totals.get(date) ?? 0) >= needed) return byDate.get(date) ?? null;
-    }
-  }
-  return byDate.get(dates[0]) ?? null;
-}
-
-/** Window for the KPI tiles — a week is enough to find the last posted day. */
-export function recentAttendanceWindowStart(): string {
-  return isoDaysAgo(7);
-}
+// Note: the headline present/absent/late tiles do NOT come from these rows.
+// They are the ATS Number Cards, evaluated by Frappe — see `attendanceDay.ts`.
+// This file only feeds the trend charts.

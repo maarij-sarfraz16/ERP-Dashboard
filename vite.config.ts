@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
@@ -11,6 +12,17 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+
+    // `npm test` runs the attendance reconciliation against the live Frappe
+    // site (see src/api/attendanceReconciliation.test.ts). There is no dev
+    // server under Vitest, so the `/frappe-api` proxy does not exist; force
+    // direct calls. Node is not a browser, so CORS does not apply.
+    test: {
+      env: { VITE_USE_DEV_PROXY: 'false' },
+      testTimeout: 120_000,
+      hookTimeout: 120_000,
+    },
+
     server: {
       // Listen on every interface, not just localhost, so the "React Dashboard"
       // shortcut in the Frappe desk works from any machine on the LAN and not
