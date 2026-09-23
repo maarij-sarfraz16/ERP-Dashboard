@@ -38,6 +38,28 @@ export const ATTENDANCE_CARDS = {
   late: "Late Entry (Yesterday)",
 } as const;
 
+/**
+ * The other headline Number Cards on the same ATS "Overview" workspace —
+ * not tied to the attendance day, so they are fetched separately.
+ */
+export const WORKSPACE_CARDS = {
+  /** `Employee Checkin`: time Timespan "today" (workspace label "Employee Checkin Today"). */
+  checkinsToday: "Checkins Today",
+  /** `Employee`: employment_type PERMANENT, any status (workspace label "Permanent Employee"). */
+  permanent: "Employee Type Wise-1",
+  /** `Employee`: employment_type DAILY WAGES, any status (workspace label "Daily Wages Employee"). */
+  dailyWages: "Employee Type WIse",
+} as const;
+
+export interface WorkspaceHeadlines {
+  /** WORKSPACE_CARDS.checkinsToday, as evaluated by Frappe. */
+  checkinsToday: number;
+  /** WORKSPACE_CARDS.permanent, as evaluated by Frappe. */
+  permanentEmployees: number;
+  /** WORKSPACE_CARDS.dailyWages, as evaluated by Frappe. */
+  dailyWageEmployees: number;
+}
+
 export interface AttendanceDaySummary {
   /** The calendar date Frappe resolves "yesterday" to, in the site time zone. */
   date: string;
@@ -151,4 +173,18 @@ export async function fetchAttendanceDaySummary(): Promise<AttendanceDaySummary>
     evaluateNumberCard(ATTENDANCE_CARDS.late),
   ]);
   return { date, present, absent, late, recordsPosted };
+}
+
+/**
+ * Check-ins today and the permanent / daily-wage headcounts, straight from
+ * the same workspace's Number Cards. Required for the same reason as
+ * `fetchAttendanceDaySummary`: a fallback would be a made-up number.
+ */
+export async function fetchWorkspaceHeadlines(): Promise<WorkspaceHeadlines> {
+  const [checkinsToday, permanentEmployees, dailyWageEmployees] = await Promise.all([
+    evaluateNumberCard(WORKSPACE_CARDS.checkinsToday),
+    evaluateNumberCard(WORKSPACE_CARDS.permanent),
+    evaluateNumberCard(WORKSPACE_CARDS.dailyWages),
+  ]);
+  return { checkinsToday, permanentEmployees, dailyWageEmployees };
 }

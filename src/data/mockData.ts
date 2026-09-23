@@ -26,6 +26,12 @@ export interface Kpis {
    * `totalEmployees` the three counts above are still filling in.
    */
   attendanceRecordsPosted: number;
+  /** ATS card "Checkins Today": Employee Checkin rows stamped today, evaluated by Frappe. */
+  checkinsToday: number;
+  /** ATS card "Employee Type Wise-1": employment type PERMANENT, any status. */
+  permanentEmployees: number;
+  /** ATS card "Employee Type WIse": employment type DAILY WAGES, any status. */
+  dailyWageEmployees: number;
   onPayrollThisCycle: number;
   presentPct: number;
   /** Employees whose date of joining is in the last 7 days. */

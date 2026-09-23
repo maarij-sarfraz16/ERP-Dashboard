@@ -18,6 +18,7 @@ export interface HeadcountEmployee {
   designation: string;
   gender: string;
   maritalStatus: string;
+  /** Folded to Frappe's Select spelling (Bank / Cash / Cheque); see normalizeSalaryMode. */
   salaryMode: string;
   bankName: string;
   reasonForLeaving: string;
@@ -57,6 +58,19 @@ interface RawEmployee {
 }
 
 const clean = (v: string | null | undefined) => (v ?? "").trim();
+
+/**
+ * `salary_mode` is a Select (Bank / Cash / Cheque) in Frappe, but imported
+ * records carry it in mixed case — "BANK" and "Bank" both exist on the live
+ * site. They are one mode; fold to the Select's own spelling so the pay-mode
+ * card doesn't split bank-paid staff in two and the bank card counts all of
+ * them. Anything else is left as HR entered it.
+ */
+const SALARY_MODES = ["Bank", "Cash", "Cheque"];
+function normalizeSalaryMode(raw: string | null | undefined): string {
+  const v = clean(raw);
+  return SALARY_MODES.find((m) => m.toLowerCase() === v.toLowerCase()) ?? v;
+}
 
 export async function fetchHeadcountData(): Promise<HeadcountData> {
   const [rawEmployees, { date: attendanceDate }] = await Promise.all([
@@ -110,7 +124,7 @@ export async function fetchHeadcountData(): Promise<HeadcountData> {
     designation: clean(raw.designation),
     gender: clean(raw.gender),
     maritalStatus: clean(raw.marital_status),
-    salaryMode: clean(raw.salary_mode),
+    salaryMode: normalizeSalaryMode(raw.salary_mode),
     bankName: clean(raw.bank_name),
     reasonForLeaving: clean(raw.reason_for_leaving),
     dateOfJoining: clean(raw.date_of_joining),

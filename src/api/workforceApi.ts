@@ -12,7 +12,7 @@ import {
   foldByDate,
   type AttendanceDailyRow,
 } from "./attendanceCommon";
-import { fetchAttendanceDaySummary } from "./attendanceDay";
+import { fetchAttendanceDaySummary, fetchWorkspaceHeadlines } from "./attendanceDay";
 import {
   classifyEmploymentType,
   classifyPayrollCycle,
@@ -78,6 +78,7 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
   const [
     totalEmployees,
     yesterday,
+    headlines,
     newHires7d,
     dailyAttendance,
     payrollPeriods,
@@ -95,6 +96,10 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     // ATS Number Cards themselves (see `attendanceDay.ts`). A locally computed
     // stand-in could disagree with the main dashboard, so there is none.
     fetchAttendanceDaySummary(),
+
+    // Same reasoning: check-ins today and the permanent / daily-wage tiles
+    // mirror the workspace's own Number Cards, so they are required as well.
+    fetchWorkspaceHeadlines(),
 
     optional("New hires (7d)", getCount("Employee", [["date_of_joining", ">=", isoDaysAgo(7)]]), 0),
 
@@ -187,6 +192,9 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     absentToday: yesterday.absent,
     lateToday: yesterday.late,
     attendanceRecordsPosted: yesterday.recordsPosted,
+    checkinsToday: headlines.checkinsToday,
+    permanentEmployees: headlines.permanentEmployees,
+    dailyWageEmployees: headlines.dailyWageEmployees,
     onPayrollThisCycle: paidEmployees.size,
     presentPct:
       totalEmployees > 0 ? Math.round((yesterday.present / totalEmployees) * 1000) / 10 : 0,

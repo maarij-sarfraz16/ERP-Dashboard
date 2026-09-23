@@ -4,7 +4,6 @@ import { useEmployeeData } from "../hooks/useEmployeeData";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { KpiHero } from "../components/kpi/KpiHero";
-import { formatAttendanceDate } from "../components/kpi/formatAttendanceDate";
 import { KpiTile } from "../components/kpi/KpiTile";
 import { AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
 import { PayrollDeptChart } from "../components/charts/PayrollDeptChart";
@@ -42,11 +41,22 @@ export function OverviewPage() {
           animationClass="load-in-2"
         />
         <KpiTile
-          label={`ABSENT — ${formatAttendanceDate(kpis.attendanceDate).toUpperCase()}`}
-          value={kpis.absentToday.toLocaleString()}
-          footNote="attendance marked Absent, all shifts"
-          variant="rust"
+          label="TOTAL CHECK-INS TODAY"
+          value={kpis.checkinsToday.toLocaleString()}
+          footNote="employee check-ins logged today, all shifts"
           animationClass="load-in-3"
+        />
+        <KpiTile
+          label="PERMANENT EMPLOYEES"
+          value={kpis.permanentEmployees.toLocaleString()}
+          footNote="employment type Permanent, all statuses"
+          animationClass="load-in-4"
+        />
+        <KpiTile
+          label="DAILY WAGES EMPLOYEES"
+          value={kpis.dailyWageEmployees.toLocaleString()}
+          footNote="employment type Daily Wages, all statuses"
+          animationClass="load-in-5"
         />
       </div>
 

@@ -137,19 +137,25 @@ function hintForStatus(status: number): string {
  * error normalisation already applied. Every other function in `src/api/`
  * goes through this, so hooks never repeat the boilerplate.
  */
-export async function frappeFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function frappeFetch<T>(
+  path: string,
+  init: RequestInit & { timeoutMs?: number } = {},
+): Promise<T> {
   assertConfigured();
 
   const url = `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // Script reports that walk child tables per row (HR Loan Summary) can take
+  // longer than an ordinary list read, so callers may extend the budget.
+  const { timeoutMs = REQUEST_TIMEOUT_MS, ...fetchInit } = init;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
     response = await fetch(url, {
-      ...init,
+      ...fetchInit,
       signal: controller.signal,
-      headers: { ...authHeaders(), ...(init.headers ?? {}) },
+      headers: { ...authHeaders(), ...(fetchInit.headers ?? {}) },
     });
   } catch (err) {
     // fetch() only rejects for network-level problems: server down, wrong
@@ -158,7 +164,7 @@ export async function frappeFetch<T>(path: string, init: RequestInit = {}): Prom
     const aborted = err instanceof DOMException && err.name === "AbortError";
     throw new FrappeError(
       aborted
-        ? `Frappe did not respond within ${REQUEST_TIMEOUT_MS / 1000}s (${CONFIGURED_URL}).`
+        ? `Frappe did not respond within ${timeoutMs / 1000}s (${CONFIGURED_URL}).`
         : `Could not reach the Frappe server at ${CONFIGURED_URL}.`,
       {
         isNetworkError: true,
@@ -236,6 +242,7 @@ export async function getDoc<T>(doctype: string, name: string): Promise<T> {
 export async function callMethod<T>(
   dottedPath: string,
   params: Record<string, unknown> = {},
+  options: { timeoutMs?: number } = {},
 ): Promise<T> {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -244,7 +251,7 @@ export async function callMethod<T>(
   }
   const suffix = query.toString() ? `?${query.toString()}` : "";
 
-  const body = await frappeFetch<FrappeEnvelope<T>>(`/api/method/${dottedPath}${suffix}`);
+  const body = await frappeFetch<FrappeEnvelope<T>>(`/api/method/${dottedPath}${suffix}`, options);
   // `/api/method` returns `{message: ...}`; a few endpoints return `{data: ...}`.
   return (body.message ?? body.data) as T;
 }

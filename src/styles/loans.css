@@ -1,0 +1,555 @@
+/* Loans page. Colours come from theme.css so dark mode follows the site-wide
+   tokens. `--ln-accent` is set per tile to the figure's meaning. */
+
+.ln-page {
+  --ln-radius: 10px;
+}
+
+/* ─────────────────────────────────────────────────────────── summary tiles */
+
+.ln-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.ln-stat {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--ln-radius);
+  padding: 16px 18px 14px 20px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ln-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--ln-accent);
+}
+
+.ln-stat-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+}
+
+.ln-stat-value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ln-stat-foot {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ─────────────────────────────────────────────────────────── chart cards */
+
+.ln-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.ln-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--ln-radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+
+.ln-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Recovery meter: one bar, recovered vs. outstanding, from the summary cards. */
+.ln-meter {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--surface-recessed);
+  gap: 2px;
+}
+
+.ln-meter > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.ln-meter-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 12px;
+}
+
+.ln-key {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.ln-key-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  position: relative;
+  top: 1px;
+}
+
+.ln-key-value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ln-key-label {
+  color: var(--ink-muted);
+}
+
+/* Ranked bars (by department). */
+.ln-ranked {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+}
+
+.ln-ranked-row {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.ln-ranked-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ln-ranked-track {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface-recessed);
+  overflow: hidden;
+  display: flex;
+  gap: 2px;
+}
+
+/* The fill is the department's share of the biggest lender; inside it the
+   bar splits recovered (green) vs. balance (rust), same as the meter above. */
+.ln-ranked-fill {
+  display: flex;
+  height: 100%;
+  gap: 2px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ln-ranked-fill > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.ln-ranked-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.ln-ranked-num.green {
+  color: var(--data-green);
+}
+
+.ln-ranked-num.rust {
+  color: var(--data-rust);
+}
+
+.ln-ranked-sep {
+  color: var(--ink-muted);
+  margin: 0 4px;
+}
+
+.ln-ranked-sub {
+  color: var(--ink-muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* ─────────────────────────────────────────────────────────── toolbar */
+
+.ln-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+
+.ln-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-recessed);
+  padding: 0 12px;
+  flex: 1 1 220px;
+  max-width: 320px;
+  color: var(--ink-muted);
+}
+
+.ln-search input {
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  padding: 7px 0;
+  width: 100%;
+  color: var(--ink);
+}
+
+.ln-date {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-recessed);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.ln-date > span {
+  padding: 6px 4px 6px 12px;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+}
+
+.ln-date input {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 12px var(--font-mono);
+  padding: 5px 10px 5px 4px;
+}
+
+.ln-clear {
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px 4px;
+}
+
+.ln-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* "Disbursed" is blue on the desk report; the shared pills have no blue. */
+.status-pill.info {
+  background: color-mix(in srgb, var(--data-indigo) 14%, transparent);
+  color: var(--data-indigo);
+}
+.status-pill.info .dot {
+  background: var(--data-indigo);
+}
+
+/* ─────────────────────────────────────────────────────────── table */
+
+.ln-table-wrap {
+  overflow-x: auto;
+}
+
+.ln-table th.num,
+.ln-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ln-table th {
+  white-space: nowrap;
+}
+
+.ln-table th button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ln-table th button:hover {
+  color: var(--ink);
+}
+
+.ln-sort {
+  display: inline-block;
+  width: 10px;
+  font-size: 9px;
+}
+
+.ln-table tbody tr {
+  cursor: pointer;
+  transition: background 100ms;
+}
+
+.ln-table tbody tr:hover td {
+  background: var(--surface-recessed);
+}
+
+.ln-table td.muted {
+  color: var(--ink-muted);
+}
+
+.ln-table td.name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ln-table td.mono {
+  white-space: nowrap;
+}
+
+.ln-table tfoot td {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: none;
+  background: var(--surface-recessed);
+}
+
+.ln-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--status-late-bg);
+  color: var(--status-late);
+  font: 600 10px var(--font-mono);
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.ln-emp-status {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  margin-left: 6px;
+}
+
+.ln-emp-status.off {
+  color: var(--status-absent);
+}
+
+.ln-empty {
+  text-align: center;
+  color: var(--ink-muted);
+  padding: 28px 10px !important;
+}
+
+.ln-pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.ln-pager .range-toggle button:disabled:not(.active) {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ─────────────────────────────────────────────────────────── error */
+
+.ln-error {
+  border-left: 3px solid var(--status-absent);
+}
+
+.ln-error .chart-title {
+  color: var(--status-absent);
+}
+
+/* ─────────────────────────────────────────────────────────── drawer */
+
+.ln-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 40;
+}
+
+.ln-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(720px, 100vw);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.18);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ln-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ln-drawer-head h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ln-drawer-close {
+  background: var(--surface-recessed);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.ln-drawer-body {
+  overflow-y: auto;
+  padding: 16px 22px 28px;
+}
+
+.ln-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin-bottom: 18px;
+}
+
+.ln-fact-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+}
+
+.ln-fact-value {
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.ln-fact-value.mono {
+  font-family: var(--font-mono);
+}
+
+.ln-sched-summary {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 0 0 10px;
+}
+
+.ln-sched-summary b {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.ln-sched tr.paid td {
+  background: var(--status-good-bg);
+}
+
+/* ─────────────────────────────────────────────────────────── responsive */
+
+@media (max-width: 1180px) {
+  .ln-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ln-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .ln-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ln-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ln-ranked-row {
+    grid-template-columns: 110px 1fr auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .ln-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ln-sched th,
+.ln-sched td {
+  white-space: nowrap;
+}

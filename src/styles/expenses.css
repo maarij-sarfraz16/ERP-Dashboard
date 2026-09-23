@@ -1,0 +1,308 @@
+/* Expense Claims page. Builds on loans.css (cards, toolbar, table, pager,
+   drawer); only what differs lives here. */
+
+/* Six tiles instead of five. */
+.ec-stats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.ec-grid {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.ec-legend {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-top: 3px;
+}
+
+/* Fifteen columns: tighter cells than the loans table so more fit on screen. */
+.ec-table th,
+.ec-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.ec-table td.name {
+  white-space: normal;
+  min-width: 150px;
+}
+
+/* ─────────────────────────────────────────────────────────── pipeline */
+
+.ec-pipeline {
+  height: 16px;
+  border-radius: 8px;
+}
+
+.ec-pipeline-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+
+.ec-pipeline-key {
+  display: grid;
+  grid-template-columns: 9px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+}
+
+.ec-pipeline-key:hover {
+  background: var(--surface-recessed);
+}
+
+.ec-pipeline-key.active {
+  background: var(--surface-recessed);
+  border-color: var(--border-strong);
+}
+
+.ec-pipeline-state {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ec-pipeline-count {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  min-width: 32px;
+  text-align: right;
+}
+
+.ec-pipeline-amt {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  min-width: 96px;
+  text-align: right;
+}
+
+/* ─────────────────────────────────────────────────────────── beneficiary */
+
+.ec-benef-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ec-benef-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-recessed);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 100ms, background 100ms;
+}
+
+.ec-benef-tile:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.ec-benef-tile.active {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.ec-benef-tile:disabled {
+  cursor: default;
+}
+
+.ec-benef-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.ec-benef-amt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ec-benef-sub {
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────────────────── table */
+
+.ec-table td.ec-designation {
+  white-space: nowrap;
+  color: var(--ink-muted);
+}
+
+.ec-type {
+  display: block;
+  white-space: nowrap;
+}
+
+/* Hair-thin stacked bar under the type: who the lines were for. */
+.ec-split {
+  display: flex;
+  gap: 1px;
+  height: 3px;
+  width: 92px;
+  margin-top: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--surface-recessed);
+}
+
+.ec-split > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.ec-table tr.ec-cancelled td {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong);
+}
+
+.ec-table tr.ec-cancelled td .status-pill {
+  text-decoration: none;
+}
+
+/* ─────────────────────────────────────────────────────────── drawer */
+
+.ec-drawer-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ec-drawer-hero {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-recessed);
+}
+
+.ec-hero-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ec-entitlement {
+  margin-bottom: 18px;
+}
+
+.ec-entitlement-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+.ec-entitlement-head .mono {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+.ec-entitlement .ln-meter {
+  height: 8px;
+  border-radius: 4px;
+  gap: 0;
+}
+
+.ec-benef {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.ec-lines .ec-bills {
+  white-space: normal;
+  min-width: 180px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12.5px;
+}
+
+.ec-bill-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.ec-lines tr.ec-line-cut td {
+  background: var(--status-late-bg);
+}
+
+/* ─────────────────────────────────────────────────────────── responsive */
+
+@media (max-width: 1400px) {
+  .ec-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1180px) {
+  .ec-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .ec-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ec-drawer-hero {
+    grid-template-columns: 1fr;
+  }
+  .ec-benef-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .ec-stats {
+    grid-template-columns: 1fr;
+  }
+}

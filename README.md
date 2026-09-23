@@ -56,6 +56,8 @@ React + TypeScript + Vite front end for a Frappe / HR (HRMS) backend.
 | `src/api/frappeClient.ts` | The only place that calls `fetch`. Applies base URL, `Authorization: token key:secret`, timeout and error normalisation. |
 | `src/api/attendanceDay.ts` | The one definition of "yesterday" and its present/absent/late figures — read from the ATS Number Cards, never computed here. |
 | `src/api/attendanceReconciliation.test.ts` | `npm test`: fails if any page disagrees with the ATS Overview workspace (totals *and* employee-id sets). |
+| `src/api/loanApi.ts` | Runs the ATS script report "HR Loan Summary" (`loan_management` app, doctype `HR Loan`) and reads one `HR Loan` document for the detail drawer. |
+| `src/api/loanReconciliation.test.ts` | `npm test`: fails if the Loans page disagrees with that report — loan-id set, every field of every row, the five summary cards, the chart — or with the raw `HR Loan` table. |
 | `src/api/employeeApi.ts` | Frappe rows → `EmployeeApiResponse` |
 | `src/api/workforceApi.ts` | Frappe rows → `WorkforceApiResponse` |
 | `src/api/connectionStatus.ts` | Shared store driving the backend-unreachable screen |
@@ -115,6 +117,37 @@ were driven by what the live site actually contains.
 - **Composition charts are plant-wide.** Department and employment-type splits
   come from grouped `count()` queries over the whole active roster, not from
   the 500 rows in the directory table.
+
+- **Loans are the "HR Loan Summary" report, unfiltered.** The site's
+  `loan_management` app keeps loans in `HR Loan` (+ child `HR Loan Repayment
+  Schedule`); the standard Lending app is not installed, so the desk's "Loan
+  Origination" workspace chart (`Loan Application` doctype) errors and has
+  nothing to mirror. The Loans page runs the report through
+  `frappe.desk.query_report.run` with no filters and shows its rows, its
+  `report_summary` cards and its chart as sent. The report is not paginated
+  and takes ~10 s on this site (it queries the schedule per loan), so it is
+  run once and searched/filtered/sorted/paged in the browser; the
+  reconciliation test proves the server's cards are plain sums/counts of its
+  rows, so filtered footers are the same arithmetic. Loans held by Inactive
+  or Left employees are included, as the report includes them (they are real
+  receivables); an Employee-status filter can hide them. Each row is also
+  cross-checked against its own schedule (row count vs. `repayment_periods`,
+  scheduled total vs. `loan_amount`, paid rows vs. `total_amount_paid`) and
+  flagged when they disagree — the report's figures are still what is shown.
+
+- **Expense claims are the `Expense Claim` list, unfiltered.** There is no
+  desk report for them, so the Expense Claims page reads every header (all
+  docstatuses, in one list call) plus a grouped read of `Expense Claim
+  Detail` for the Self/Wife/Son/Daughter split, and the claimant's
+  `Employee.status`. This site uses the doctype for medical reimbursement:
+  `custom_expense_type`, `custom_bill_of_month`, `custom_medical_amount`
+  (entitlement) and `custom_remaining_balance_` are shown as stored. The
+  summary tiles are plain sums over every claim; the charts and table follow
+  the filters. "Awaiting approval" is any claim whose workflow state is not
+  Approved/Rejected; "Approved, unpaid" is submitted claims with
+  `status = Unpaid` (sanctioned minus reimbursed). Claims by Inactive or Left
+  employees are included — an approved claim is payable regardless — and the
+  Employee-status filter can hide them.
 
 Known rough edge: the growth headline on the payroll page compares the latest
 month against the oldest in the window, and the current month is partial, so
