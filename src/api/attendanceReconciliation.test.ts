@@ -18,7 +18,6 @@ import { fetchDailyAttendance } from "./attendanceCommon";
 import { fetchAttendanceLog } from "./attendanceLogApi";
 import { fetchWorkforceData } from "./workforceApi";
 import { fetchEmployeeData } from "./employeeApi";
-import { fetchHeadcountData } from "./headcountApi";
 import { isoDaysAgo } from "./frappeMappers";
 
 type Filter = [string, string, string, unknown, boolean?];
@@ -111,14 +110,25 @@ describe("yesterday: this dashboard vs. the ATS Overview workspace", () => {
       present: mainPresent,
       late: mainLate,
     });
+
+    // The attendance trend bar for the same day must say the same thing as
+    // the cards — it is computed from a separate aggregate query, so it can
+    // only agree if it uses the cards' definitions.
+    const bar = workforce.attendanceDaily.find((p) => p.date === kpis.attendanceDate);
+    expect(bar, `no trend bar for ${kpis.attendanceDate}`).toBeDefined();
+    expect({ absent: bar!.absent, present: bar!.present, late: bar!.late }).toEqual({
+      absent: mainAbsent,
+      present: mainPresent,
+      late: mainLate,
+    });
   });
 
   it("the absent employee ids are the same set on both dashboards", async () => {
     const absentCard = await card(ATTENDANCE_CARDS.absent);
-    const [mainIds, workforce, headcount] = await Promise.all([
+    const [mainIds, workforce, employees] = await Promise.all([
       cardEmployeeIds(absentCard),
       fetchWorkforceData(),
-      fetchHeadcountData(),
+      fetchEmployeeData(),
     ]);
     const date = workforce.kpis.attendanceDate;
     expect(date).toBeTruthy();
@@ -135,32 +145,28 @@ describe("yesterday: this dashboard vs. the ATS Overview workspace", () => {
     });
     const appIds = appRows.map((r) => r.employee).sort();
 
-    // Head Count page: the per-employee status map it filters on.
-    expect(headcount.attendanceDate).toBe(date);
-    const headcountIds: string[] = [];
-    for (const [id, statuses] of headcount.attendanceByEmployee) {
-      for (const s of statuses) if (s === "Absent") headcountIds.push(id);
+    // Employees page's Workforce snapshot: the per-employee status map it filters on.
+    expect(employees.attendanceDate).toBe(date);
+    const snapshotIds: string[] = [];
+    for (const [id, statuses] of employees.attendanceByEmployee) {
+      for (const s of statuses) if (s === "Absent") snapshotIds.push(id);
     }
-    headcountIds.sort();
+    snapshotIds.sort();
 
     console.log(
-      `[reconcile] ${date} absent ids: main=${mainIds.length} app=${appIds.length} headcount=${headcountIds.length}`,
+      `[reconcile] ${date} absent ids: main=${mainIds.length} app=${appIds.length} snapshot=${snapshotIds.length}`,
     );
     // Sorted arrays, not Sets: a duplicated row shows up as a length change.
     expect(appIds).toEqual(mainIds);
-    expect(headcountIds).toEqual(mainIds);
+    expect(snapshotIds).toEqual(mainIds);
     expect(workforce.kpis.absentToday).toBe(mainIds.length);
   });
 
-  it("the Employees and Head Count pages describe the same day and figures", async () => {
-    const [workforce, employees, headcount] = await Promise.all([
-      fetchWorkforceData(),
-      fetchEmployeeData(),
-      fetchHeadcountData(),
-    ]);
+  it("the Employees page describes the same day and figures as the tiles", async () => {
+    const [workforce, employees] = await Promise.all([fetchWorkforceData(), fetchEmployeeData()]);
     const { kpis } = workforce;
     expect(employees.presenceDate).toBe(kpis.attendanceDate);
-    expect(headcount.attendanceDate).toBe(kpis.attendanceDate);
+    expect(employees.attendanceDate).toBe(kpis.attendanceDate);
     expect(employees.totalActive).toBe(kpis.totalEmployees);
     expect(employees.presentTodayPct).toBe(
       kpis.totalEmployees > 0 ? Math.round((kpis.presentToday / kpis.totalEmployees) * 100) : 0,

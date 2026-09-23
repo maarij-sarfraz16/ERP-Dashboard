@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { HeadcountEmployee } from "../../api/headcountApi";
+import type { HeadcountEmployee } from "../../data/employeeData";
 import { cleanDepartment, initialsOf } from "../../api/frappeMappers";
 import { fmtDate } from "./hcShared";
 

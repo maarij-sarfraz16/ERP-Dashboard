@@ -82,7 +82,6 @@ export async function fetchAttendanceLog(date: string): Promise<AttendanceLog> {
 
 const STATUS_OF_BAND: Record<AttendanceBand, AttendanceStatus> = {
   present: "on-time",
-  late: "late",
   halfDay: "half-day",
   absent: "absent",
   holiday: "holiday",
@@ -95,7 +94,11 @@ export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]):
   );
 
   return rows.map((row) => {
-    const status = STATUS_OF_BAND[attendanceBand(row.status, row.late_entry)];
+    const lateEntry = Boolean(row.late_entry);
+    const band = attendanceBand(row.status);
+    // The badge shows a late Present as "Late"; any other status keeps its
+    // own badge and the flag is carried in `lateEntry`.
+    const status: AttendanceStatus = band === "present" && lateEntry ? "late" : STATUS_OF_BAND[band];
 
     const start = row.shift ? shiftStart.get(row.shift) ?? null : null;
     const inMinutes = minutesSinceMidnight(row.in_time);
@@ -112,6 +115,7 @@ export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]):
       checkIn: formatClock(row.in_time),
       checkOut: row.out_time ? formatClock(row.out_time) : null,
       status,
+      lateEntry,
       minutesLate,
     };
   });

@@ -6,12 +6,12 @@
 
 import { describe, expect, it } from "vitest";
 import { getList } from "../../api/frappeClient";
-import { fetchHeadcountData } from "../../api/headcountApi";
+import { fetchEmployeeData } from "../../api/employeeApi";
 import { bankBreakdown, NO_BANK_NAME } from "./hcShared";
 
 describe("bank breakdown vs. the server's own GROUP BY bank_name", () => {
   it("has the same groups, counts and total as Frappe", async () => {
-    const [serverRows, serverTotal, headcount] = await Promise.all([
+    const [serverRows, serverTotal, employees] = await Promise.all([
       getList<{ bank_name: string | null; count: number | string }>("Employee", {
         fields: ["bank_name", "count(name) as count"],
         filters: [["salary_mode", "=", "Bank"]],
@@ -23,7 +23,7 @@ describe("bank breakdown vs. the server's own GROUP BY bank_name", () => {
         filters: [["salary_mode", "=", "Bank"]],
         limit: 0,
       }),
-      fetchHeadcountData(),
+      fetchEmployeeData(),
     ]);
 
     // Server groups, keyed the way the collation compares them. A blank and a
@@ -34,7 +34,7 @@ describe("bank breakdown vs. the server's own GROUP BY bank_name", () => {
       server.set(key, (server.get(key) ?? 0) + Number(r.count));
     }
 
-    const app = bankBreakdown(headcount.employees);
+    const app = bankBreakdown(employees.roster);
     const appMap = new Map(app.map((r) => [r.key, r.count]));
 
     console.log(
@@ -46,7 +46,7 @@ describe("bank breakdown vs. the server's own GROUP BY bank_name", () => {
     expect(app.reduce((n, r) => n + r.count, 0)).toBe(serverTotal.length);
 
     // Every label is a spelling that actually exists on an employee record.
-    const spellings = new Set(headcount.employees.map((e) => e.bankName));
+    const spellings = new Set(employees.roster.map((e) => e.bankName));
     for (const r of app) {
       if (r.key) expect(spellings.has(r.label), `label "${r.label}" is not a stored value`).toBe(true);
       else expect(r.label).toBe(NO_BANK_NAME);

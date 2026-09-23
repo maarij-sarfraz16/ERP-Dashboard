@@ -344,9 +344,33 @@
 
 /* ----------------------------------------------------------- directory */
 
+/* Directory panel matches the side column's height; the list fills the rest. */
+.emp-layout > .emp-panel:first-child {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  contain: size;
+}
+
 .emp-directory-list {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--emp-line) transparent;
+}
+
+.emp-directory-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emp-directory-list::-webkit-scrollbar-thumb {
+  background: var(--emp-line);
+  border-radius: 3px;
 }
 
 .emp-row {
@@ -579,6 +603,12 @@
 @media (max-width: 980px) {
   .emp-layout {
     grid-template-columns: 1fr;
+  }
+  .emp-layout > .emp-panel:first-child {
+    contain: none;
+  }
+  .emp-directory-list {
+    max-height: 560px;
   }
   .emp-hero-stats {
     margin-left: 0;

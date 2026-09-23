@@ -5,7 +5,7 @@ import { AttendanceStatusBadge } from "../common/StatusBadge";
 import { isoDaysAgo, today } from "../../api/frappeMappers";
 
 type StatusFilter = AttendanceStatus | "all";
-type SortKey = "name" | "status" | "check-in";
+type SortKey = "name" | "present" | "status" | "check-in";
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -22,6 +22,15 @@ const STATUS_RANK: Record<AttendanceStatus, number> = {
   late: 1,
   "half-day": 2,
   "on-time": 3,
+  holiday: 4,
+};
+
+/** On-time first, then late, half-day, absent — present people lead the log. */
+const PRESENT_RANK: Record<AttendanceStatus, number> = {
+  "on-time": 0,
+  late: 1,
+  "half-day": 2,
+  absent: 3,
   holiday: 4,
 };
 
@@ -50,7 +59,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [department, setDepartment] = useState("all");
   const [shift, setShift] = useState("all");
-  const [sort, setSort] = useState<SortKey>("status");
+  const [sort, setSort] = useState<SortKey>("name");
   const [page, setPage] = useState(0);
 
   const rows: CheckIn[] = log?.rows ?? [];
@@ -85,16 +94,33 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
       absent: 0,
       holiday: 0,
     };
-    for (const r of scoped) c[r.status] += 1;
+    for (const r of scoped) {
+      c[r.status] += 1;
+      // "Late" is the ATS "Late Entry" card: the flag on any status, so a
+      // flagged Absent row counts here as well as under Absent.
+      if (r.lateEntry && r.status !== "late") c.late += 1;
+    }
     return c;
   }, [scoped]);
 
   const filtered = useMemo(() => {
-    const list = status === "all" ? scoped : scoped.filter((r) => r.status === status);
+    const list =
+      status === "all"
+        ? scoped
+        : status === "late"
+          ? scoped.filter((r) => r.status === "late" || r.lateEntry)
+          : scoped.filter((r) => r.status === status);
     const sorted = [...list];
     switch (sort) {
       case "name":
         sorted.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+        break;
+      case "present":
+        sorted.sort(
+          (a, b) =>
+            PRESENT_RANK[a.status] - PRESENT_RANK[b.status] ||
+            a.employeeName.localeCompare(b.employeeName),
+        );
         break;
       case "status":
         sorted.sort(
@@ -132,7 +158,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
   const first = filtered.length === 0 ? 0 : page * PAGE_SIZE + 1;
   const last = Math.min(filtered.length, (page + 1) * PAGE_SIZE);
 
-  const totalLate = rows.filter((r) => r.status === "late").length;
+  const totalLate = rows.filter((r) => r.lateEntry).length;
   const totalAbsent = rows.filter((r) => r.status === "absent").length;
   const hasFilters = query || status !== "all" || department !== "all" || shift !== "all";
 
@@ -231,8 +257,9 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
           onChange={(e) => setSort(e.target.value as SortKey)}
           aria-label="Sort by"
         >
-          <option value="status">Sort: needs attention</option>
           <option value="name">Sort: name</option>
+          <option value="present">Sort: present first</option>
+          <option value="status">Sort: needs attention</option>
           <option value="check-in">Sort: check-in time</option>
         </select>
 

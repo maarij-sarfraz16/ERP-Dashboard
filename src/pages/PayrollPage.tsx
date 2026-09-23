@@ -1,6 +1,8 @@
 import "../styles/payroll.css";
+import { PageLoader } from "../components/common/PageLoader";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useWorkforceData } from "../hooks/useWorkforceData";
+import { useOvertimeReport } from "../hooks/useOvertimeReport";
 import type { PayrollMonthPoint } from "../data/mockData";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
@@ -9,7 +11,9 @@ import { PayrollRunsTable } from "../components/payroll/PayrollRunsTable";
 import { CycleTrendChart } from "../components/payroll/CycleTrendChart";
 import { MonthlySalaryChart } from "../components/payroll/MonthlySalaryChart";
 import { DepartmentSalaryChart } from "../components/payroll/DepartmentSalaryChart";
+import { OvertimeMonthlyChart } from "../components/payroll/OvertimeMonthlyChart";
 import { Segmented } from "../components/payroll/Segmented";
+import { MonthSelect } from "../components/common/MonthSelect";
 import {
   CYCLE_FILTERS,
   CYCLE_META,
@@ -79,31 +83,32 @@ function Legend({ filter }: { filter: CycleFilter }) {
 
 export function PayrollPage() {
   const { data, loading } = useWorkforceData();
+  const overtime = useOvertimeReport();
   const [monthFilter, setMonthFilter] = useState<CycleFilter>("all");
   const [deptFilter, setDeptFilter] = useState<CycleFilter>("all");
-  const [deptMonth, setDeptMonth] = useState<string | null>(null);
+  // `null` until the reader picks one: the page opens on the current month.
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null);
   const [deptShowAll, setDeptShowAll] = useState(false);
   const [runFilter, setRunFilter] = useState<CycleFilter>("all");
 
   const monthly = useMemo(() => data?.payrollMonthly ?? [], [data]);
-  // The current month is mid-cycle (the monthly run is only posted at month
-  // end), so trends and headline figures stop at the last complete month.
-  const complete = useMemo(() => {
-    const done = monthly.filter((m) => m.complete);
-    return done.length ? done : monthly;
-  }, [monthly]);
-  const inProgress = monthly.find((m) => !m.complete && m.paid > 0);
+  const inProgress = monthly.find((m) => !m.complete);
 
-  const deptMonths = useMemo(() => {
-    const keys = [...new Set((data?.payrollDeptMonthly ?? []).map((d) => d.month))];
-    return keys.sort().reverse();
-  }, [data]);
-  const latestComplete = complete[complete.length - 1]?.key ?? deptMonths[0] ?? "";
-  const selectedDeptMonth = deptMonth ?? latestComplete;
+  // Months on offer: every month with a slip, newest first, plus the current
+  // month even before its first run so the picker never skips "now".
+  const months = useMemo(
+    () =>
+      monthly
+        .filter((m) => m.paid > 0 || !m.complete)
+        .map((m) => m.key)
+        .reverse(),
+    [monthly],
+  );
+  const selectedMonth = pickedMonth ?? data?.defaultPayrollMonth ?? months[0] ?? "";
 
   const deptRows = useMemo(() => {
     return (data?.payrollDeptMonthly ?? [])
-      .filter((d) => d.month === selectedDeptMonth)
+      .filter((d) => d.month === selectedMonth)
       .map((d) => ({ ...d, total: d.permanent + d.dailyWage }))
       .map((d) => ({
         ...d,
@@ -111,7 +116,7 @@ export function PayrollPage() {
       }))
       .filter((d) => d.sortValue > 0)
       .sort((a, b) => b.sortValue - a.sortValue);
-  }, [data, selectedDeptMonth, deptFilter]);
+  }, [data, selectedMonth, deptFilter]);
 
   const runs = useMemo(() => data?.recentPayrollRuns ?? [], [data]);
   const runCounts = useMemo(
@@ -127,14 +132,16 @@ export function PayrollPage() {
     return (
       <>
         <PageHead index="03 / 04" title="Payroll" subtitle="Cost tracking and run history" />
-        <p className="chart-sub">Loading payroll records…</p>
+        <PageLoader message="Loading payroll records…" />
       </>
     );
   }
 
-  const latest: PayrollMonthPoint | undefined = complete[complete.length - 1];
-  const previous: PayrollMonthPoint | undefined = complete[complete.length - 2];
+  const latestIndex = monthly.findIndex((m) => m.key === selectedMonth);
+  const latest: PayrollMonthPoint | undefined = monthly[latestIndex];
+  const previous: PayrollMonthPoint | undefined = latestIndex > 0 ? monthly[latestIndex - 1] : undefined;
   const monthName = latest ? formatMonthKey(latest.key) : "—";
+  const selectedInProgress = latest !== undefined && !latest.complete;
   const vsLabel = previous ? `vs ${previous.period}` : "";
 
   const deptTotal = deptRows.reduce((s, d) => s + d.sortValue, 0);
@@ -142,13 +149,29 @@ export function PayrollPage() {
   const topDept = deptRows[0];
   const filteredRuns = runFilter === "all" ? runs : runs.filter((r) => r.cycle === runFilter);
 
+  const monthPicker = (
+    <MonthSelect value={selectedMonth} months={months} inProgress={inProgress?.key} onChange={setPickedMonth} />
+  );
+
   return (
     <div className="py-page">
       <PageHead
         index="03 / 04"
         title="Payroll"
-        subtitle={`Paid Salary from submitted salary slips, as ATS reports it · latest complete month ${monthName}`}
+        subtitle={`Paid Salary from submitted salary slips, as ATS reports it · ${monthName}${
+          selectedInProgress ? " (in progress)" : ""
+        }`}
       />
+
+      <div className="py-toolbar load-in">
+        {monthPicker}
+        {selectedInProgress && (
+          <span className="py-note py-note-inline">
+            {monthName} is still running: daily-wage runs are posted twice a month, the permanent
+            (monthly) run only at month end — pick an earlier month for a complete figure.
+          </span>
+        )}
+      </div>
 
       {latest && (
         <div className="py-stats">
@@ -176,7 +199,7 @@ export function PayrollPage() {
           <StatTile
             className="load-in-4"
             label="Employees paid"
-            value={data.kpis.onPayrollThisCycle.toLocaleString("en-PK")}
+            value={latest.employeesPaid.toLocaleString("en-PK")}
             accent="var(--data-green)"
             foot={
               <span className="py-delta">
@@ -213,9 +236,9 @@ export function PayrollPage() {
                 )}
               </div>
               <CycleTrendChart
-                // Daily wages are paid twice a month, so the current month already
-                // has posted runs worth showing; permanent staff are paid only at month end.
-                data={type === "Daily Wage" && inProgress?.dailyWage ? [...complete, inProgress] : complete}
+                // The chart breaks the line on a zero month, so the current
+                // month only appears once this cycle has a posted run.
+                data={monthly}
                 dataKey={meta.key}
                 label={meta.label}
                 color={meta.color}
@@ -228,16 +251,20 @@ export function PayrollPage() {
           <div className="chart-card-head">
             <div>
               <div className="chart-title">By employment type</div>
-              <div className="chart-sub">Current cycle cost split</div>
+              <div className="chart-sub">Cost split · {monthName}</div>
             </div>
           </div>
-          <EmploymentTypeBar data={data.employmentTypeBreakdown} />
+          {latest ? (
+            <EmploymentTypeBar data={latest.byType} />
+          ) : (
+            <p className="chart-sub py-empty">No salary slips for this month.</p>
+          )}
         </div>
       </div>
-      {inProgress && (
+      {inProgress && inProgress.paid > 0 && (
         <p className="py-note">
-          {formatMonthKey(inProgress.key)} is in progress: shown in the daily-wages trend only —{" "}
-          {formatRs(inProgress.paid)} posted so far across {inProgress.slips.toLocaleString("en-PK")} slips.
+          {formatMonthKey(inProgress.key)} is in progress: {formatRs(inProgress.paid)} posted so far across{" "}
+          {inProgress.slips.toLocaleString("en-PK")} slips.
         </p>
       )}
 
@@ -259,13 +286,33 @@ export function PayrollPage() {
         <MonthlySalaryChart data={monthly} filter={monthFilter} />
       </div>
 
-      <SectionHeader index="03" title="Department-wise salary" />
+      <SectionHeader index="03" title="Overtime" />
+      <div className="card chart-card py-card load-in load-in-2">
+        <div className="chart-card-head py-head-wrap">
+          <div>
+            <div className="chart-title">Paid overtime by month</div>
+            <div className="chart-sub">Hours on submitted salary slips, by staff group · hover a bar for the amount</div>
+          </div>
+          <div className="py-controls">
+            <Legend filter="all" />
+          </div>
+        </div>
+        {overtime.loading ? (
+          <p className="chart-sub py-empty">Loading overtime…</p>
+        ) : overtime.data ? (
+          <OvertimeMonthlyChart data={overtime.data.monthly} />
+        ) : (
+          <p className="chart-sub py-empty">Overtime could not be read from Salary Slip, so no figures are shown.</p>
+        )}
+      </div>
+
+      <SectionHeader index="04" title="Department-wise salary" />
       <div className="card chart-card py-card load-in load-in-3">
         <div className="chart-card-head py-head-wrap">
           <div>
             <div className="chart-title">Paid salary by department</div>
             <div className="chart-sub">
-              {deptRows.length} departments · {formatRs(deptTotal)}
+              {monthName} · {deptRows.length} departments · {formatRs(deptTotal)}
               {topDept && deptTotal > 0 && (
                 <>
                   {" "}· highest {topDept.department} ({((topDept.sortValue / deptTotal) * 100).toFixed(2)}%)
@@ -274,17 +321,7 @@ export function PayrollPage() {
             </div>
           </div>
           <div className="py-controls">
-            <label className="py-select">
-              <span>Month</span>
-              <select value={selectedDeptMonth} onChange={(e) => setDeptMonth(e.target.value)}>
-                {deptMonths.map((m) => (
-                  <option key={m} value={m}>
-                    {formatMonthKey(m)}
-                    {monthly.find((p) => p.key === m)?.complete === false ? " (in progress)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {monthPicker}
             <Segmented label="Staff group" value={deptFilter} options={cycleFilterOptions()} onChange={setDeptFilter} />
           </div>
         </div>
@@ -303,7 +340,7 @@ export function PayrollPage() {
         )}
       </div>
 
-      <SectionHeader index="04" title="Payroll runs" />
+      <SectionHeader index="05" title="Payroll runs" />
       <div className="card py-card load-in load-in-4">
         <div className="chart-card-head py-head-wrap">
           <div>

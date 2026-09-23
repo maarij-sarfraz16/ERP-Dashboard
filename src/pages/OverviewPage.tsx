@@ -1,4 +1,7 @@
+import { useMemo, useState } from "react";
+import { PageLoader } from "../components/common/PageLoader";
 import { Link } from "react-router-dom";
+import { payrollByDepartment } from "../api/workforceApi";
 import { useWorkforceData } from "../hooks/useWorkforceData";
 import { useEmployeeData } from "../hooks/useEmployeeData";
 import { PageHead } from "../components/common/PageHead";
@@ -8,23 +11,39 @@ import { KpiTile } from "../components/kpi/KpiTile";
 import { AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
 import { PayrollDeptChart } from "../components/charts/PayrollDeptChart";
 import { HeadcountMiniChart } from "../components/charts/HeadcountMiniChart";
-import { formatMonthKey } from "../components/payroll/payrollFormat";
+import { MonthSelect } from "../components/common/MonthSelect";
 
 export function OverviewPage() {
   const { data, loading } = useWorkforceData();
   const { data: employeeData, loading: employeeLoading } = useEmployeeData();
+  // `null` until the reader picks one: the card opens on the current month.
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null);
+
+  const months = useMemo(
+    () =>
+      (data?.payrollMonthly ?? [])
+        .filter((m) => m.paid > 0 || !m.complete)
+        .map((m) => m.key)
+        .reverse(),
+    [data],
+  );
+  const payrollMonth = pickedMonth ?? data?.defaultPayrollMonth ?? months[0] ?? "";
+  const deptCosts = useMemo(
+    () => payrollByDepartment(data?.payrollDeptMonthly ?? [], payrollMonth),
+    [data, payrollMonth],
+  );
 
   if (loading || employeeLoading || !data || !employeeData) {
     return (
       <>
         <PageHead index="01 / 04" title="Overview" subtitle="Summary" />
-        <p className="chart-sub">Loading floor data…</p>
+        <PageLoader message="Loading floor data…" />
       </>
     );
   }
 
-  const { kpis, attendanceDaily, payrollByDepartment, payrollMonthly } = data;
-  const payrollMonth = payrollMonthly.filter((m) => m.complete).at(-1)?.key;
+  const { kpis, attendanceDaily, payrollMonthly } = data;
+  const inProgress = payrollMonthly.find((m) => !m.complete)?.key;
 
   return (
     <>
@@ -80,14 +99,18 @@ export function OverviewPage() {
             <div>
               <div className="chart-title">Payroll</div>
               <div className="chart-sub">
-                Paid salary by department{payrollMonth ? ` · ${formatMonthKey(payrollMonth)}` : ""}, Rs million
+                Paid salary by department, Rs million
+                {payrollMonth === inProgress ? " · in progress" : ""}
               </div>
             </div>
-            <Link className="mini-chart-link" to="/payroll">
-              View detail →
-            </Link>
+            <div className="mini-chart-actions">
+              <MonthSelect value={payrollMonth} months={months} inProgress={inProgress} onChange={setPickedMonth} />
+              <Link className="mini-chart-link" to="/payroll">
+                View detail →
+              </Link>
+            </div>
           </div>
-          <PayrollDeptChart data={payrollByDepartment} height={180} />
+          <PayrollDeptChart data={deptCosts} height={180} />
         </div>
 
         <div className="card chart-card load-in load-in-4" style={{ minHeight: 240 }}>

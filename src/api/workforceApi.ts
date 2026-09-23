@@ -151,13 +151,13 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
       [] as SalarySlipCostRow[],
     ),
 
-    // Three months of per-employee slips, narrowed client-side to whichever
-    // month turns out to be the last complete one (see `latestCompleteMonth`).
+    // Per-employee slips for the same twelve months, so every month the page
+    // can select gets a distinct-employee headcount and employment-type split.
     optional(
-      "Recent cycle slips",
+      "Employee slips",
       getList<SalarySlipEmployeeRow>("Salary Slip", {
         fields: ["employee", "rounded_total", "start_date"],
-        filters: [["start_date", ">=", monthStart(2)], SUBMITTED],
+        filters: [["start_date", ">=", monthStart(11)], SUBMITTED],
         limit: 0,
       }),
       [] as SalarySlipEmployeeRow[],
@@ -177,14 +177,6 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
 
   const byDate = foldByDate(dailyAttendance);
 
-  // The current calendar month is mid-cycle, so payroll figures are scoped to
-  // the last complete month instead.
-  const payrollMonth = latestCompleteMonth(payrollCosts);
-  const monthSlips = cycleSlips.filter((s) => monthKeyOf(s.start_date) === payrollMonth);
-  // A daily-wage employee gets two slips a month (1–15 and 16–31), so slip
-  // count is not headcount.
-  const paidEmployees = new Set(monthSlips.map((s) => s.employee));
-
   const kpis: Kpis = {
     totalEmployees,
     attendanceDate: yesterday.date,
@@ -195,7 +187,6 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     checkinsToday: headlines.checkinsToday,
     permanentEmployees: headlines.permanentEmployees,
     dailyWageEmployees: headlines.dailyWageEmployees,
-    onPayrollThisCycle: paidEmployees.size,
     presentPct:
       totalEmployees > 0 ? Math.round((yesterday.present / totalEmployees) * 1000) / 10 : 0,
     employeesDelta7d: newHires7d,
@@ -206,10 +197,9 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     attendanceDaily: buildDailySeries(byDate),
     attendanceWeekly: buildWeeklySeries(byDate),
     attendanceMonthly: buildMonthlySeries(byDate),
-    payrollByDepartment: buildPayrollByDepartment(payrollCosts, payrollMonth),
-    payrollMonthly: buildPayrollMonthly(payrollCosts),
+    payrollMonthly: buildPayrollMonthly(payrollCosts, cycleSlips, employeeTypes),
     payrollDeptMonthly: buildPayrollDeptMonthly(payrollCosts),
-    employmentTypeBreakdown: buildEmploymentTypeBreakdown(monthSlips, employeeTypes),
+    defaultPayrollMonth: defaultPayrollMonth(payrollCosts),
     // The log page opens on the same day the headline tiles describe.
     latestPostedDate: yesterday.date,
     recentPayrollRuns: buildRecentPayrollRuns(payrollPeriods),
@@ -262,52 +252,47 @@ function addInto(target: AttendancePoint, source: AttendancePoint): void {
 }
 
 /**
- * The most recent month whose payroll is finished.
+ * The month the payroll pages open on: the current calendar month, unless
+ * no slip has been submitted in it yet, in which case the latest month that
+ * has one.
  *
  * This site runs two overlapping cycles: a semi-monthly one for ~320 daily-wage
  * staff and a monthly one for ~1,850 permanent staff. The monthly run is only
- * created at month end, so during the current month the only slips that exist
- * are the daily-wage ones — reporting on it would show roughly a twelfth of the
- * real cost and zero permanent employees. Excluding the in-progress month
- * avoids that, at the price of the figures trailing by up to a month.
+ * created at month end, so mid-month the current month carries daily-wage
+ * slips only. Pages flag it as "in progress" and let the reader pick any
+ * earlier month instead.
+ *
+ * Shared with `overtimeApi.ts` so the overtime headline opens on the same
+ * month as the payroll figures.
  */
-function latestCompleteMonth(rows: SalarySlipCostRow[]): string {
+export function defaultPayrollMonth(rows: { start_date: string }[]): string {
   const currentMonth = monthKeyOf(monthStart(0));
   let latest = "";
   for (const row of rows) {
     const key = monthKeyOf(row.start_date);
-    if (key !== currentMonth && key > latest) latest = key;
+    if (key === currentMonth) return currentMonth;
+    if (key > latest) latest = key;
   }
-  // Nothing but the current month on record — better to show partial data than
-  // an empty dashboard.
   return latest || currentMonth;
 }
 
-/**
- * Department paid salary for one month. Scoped to a single month on purpose: a wider
- * window would mix the two cycles unevenly and make departments look
- * arbitrarily more expensive than each other.
- */
-function buildPayrollByDepartment(
-  rows: SalarySlipCostRow[],
-  month: string,
-): PayrollDeptPoint[] {
-  const byDept = new Map<string, number>();
-  for (const row of rows) {
-    if (monthKeyOf(row.start_date) !== month) continue;
-    const department = cleanDepartment(row.department);
-    byDept.set(department, (byDept.get(department) ?? 0) + toNumber(row.paid));
-  }
-
-  const points = [...byDept.entries()]
-    .map(([department, cost]) => ({ department, cost }))
+/** Department paid salary for one month of `payrollDeptMonthly`, highest first. */
+export function payrollByDepartment(rows: PayrollDeptMonthPoint[], month: string): PayrollDeptPoint[] {
+  const points = rows
+    .filter((d) => d.month === month)
+    .map((d) => ({ department: d.department, cost: d.permanent + d.dailyWage }))
+    .filter((d) => d.cost > 0)
     .sort((a, b) => b.cost - a.cost);
   // Chart components call `Math.max(...data)`, which is -Infinity when empty.
   return points.length ? points : [{ department: "No payroll data", cost: 0 }];
 }
 
-function buildPayrollMonthly(rows: SalarySlipCostRow[]): PayrollMonthPoint[] {
-  const byMonth = new Map<string, Omit<PayrollMonthPoint, "key" | "period" | "complete">>();
+function buildPayrollMonthly(
+  rows: SalarySlipCostRow[],
+  slips: SalarySlipEmployeeRow[],
+  employees: { name: string; employment_type: string | null }[],
+): PayrollMonthPoint[] {
+  const byMonth = new Map<string, Omit<PayrollMonthPoint, "key" | "period" | "complete" | "employeesPaid" | "byType">>();
   for (const row of rows) {
     if (!row.start_date) continue;
     const key = monthKeyOf(row.start_date);
@@ -329,19 +314,35 @@ function buildPayrollMonthly(rows: SalarySlipCostRow[]): PayrollMonthPoint[] {
     byMonth.set(key, m);
   }
 
+  // Per-employee slips bucketed by month. A daily-wage employee gets two
+  // slips a month (1–15 and 16–31), so slip count is not headcount.
+  const slipsByMonth = new Map<string, SalarySlipEmployeeRow[]>();
+  for (const slip of slips) {
+    if (!slip.start_date) continue;
+    const key = monthKeyOf(slip.start_date);
+    const list = slipsByMonth.get(key) ?? [];
+    list.push(slip);
+    slipsByMonth.set(key, list);
+  }
+
   const currentMonth = monthKeyOf(monthStart(0));
-  const series = lastTwelveMonths().map(({ key, label }) => ({
-    key,
-    period: label,
-    permanent: 0,
-    dailyWage: 0,
-    paid: 0,
-    gross: 0,
-    deductions: 0,
-    slips: 0,
-    ...byMonth.get(key),
-    complete: key !== currentMonth,
-  }));
+  const series = lastTwelveMonths().map(({ key, label }) => {
+    const monthSlips = slipsByMonth.get(key) ?? [];
+    return {
+      key,
+      period: label,
+      permanent: 0,
+      dailyWage: 0,
+      paid: 0,
+      gross: 0,
+      deductions: 0,
+      slips: 0,
+      ...byMonth.get(key),
+      employeesPaid: new Set(monthSlips.map((s) => s.employee)).size,
+      byType: buildEmploymentTypeBreakdown(monthSlips, employees),
+      complete: key !== currentMonth,
+    };
+  });
 
   // Drop leading months with no payroll at all — payroll only went live
   // partway through this window, and `PayrollPage` computes month-on-month

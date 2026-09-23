@@ -1,6 +1,7 @@
 // payroll.css supplies the shared segmented control and select styling;
 // loans.css the cards, toolbar, table, pager and drawer this page reuses.
 import "../styles/payroll.css";
+import { PageLoader } from "../components/common/PageLoader";
 import "../styles/loans.css";
 import "../styles/expenses.css";
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
@@ -271,14 +272,14 @@ export function ExpenseClaimsPage() {
   const openRecord = openClaim ? (records ?? []).find((r) => r.name === openClaim) ?? null : null;
 
   const head = (
-    <PageHead index="07 / 07" title="Expense Claims" subtitle="Medical and expense reimbursements, approvals and payouts — ATS Synthetic" />
+    <PageHead index="06 / 06" title="Expense Claims" subtitle="Medical and expense reimbursements, approvals and payouts — ATS Synthetic" />
   );
 
   if (loading) {
     return (
       <div className="ln-page ec-page">
         {head}
-        <p className="chart-sub">Reading every Expense Claim from Frappe…</p>
+        <PageLoader message="Loading expense claim…" />
       </div>
     );
   }

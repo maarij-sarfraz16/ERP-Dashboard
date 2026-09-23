@@ -2,6 +2,11 @@
 // Attendance, plus the ATS gratuity report.
 // Per-employee sparkline marks live in `attendanceMarks.ts` — they depend on
 // a user-picked window, so they are fetched separately from the roster.
+//
+// The Workforce snapshot (status, pay mode, bank, exit reason, yesterday's
+// attendance) is fed from the same single roster read: its filters must apply
+// to every panel, so the rows are joined and counted in the browser. ~2.3k
+// employees and one day of attendance is small enough for that.
 
 import { frappeFileUrl, getCount, getList, optional } from "./frappeClient";
 import { fetchAttendanceDaySummary } from "./attendanceDay";
@@ -24,6 +29,7 @@ import type {
   EmployeeStatus,
   EmploymentSplitPoint,
   GratuityReport,
+  HeadcountEmployee,
   NewHirePoint,
 } from "../data/employeeData";
 import type { EmploymentType } from "../data/mockData";
@@ -38,6 +44,29 @@ interface RawEmployee {
   status: string | null;
   /** Frappe file path, e.g. `/files/1001.png` or `/private/files/1004.JPG`. */
   image: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  salary_mode: string | null;
+  bank_name: string | null;
+  reason_for_leaving: string | null;
+  relieving_date: string | null;
+  date_of_birth: string | null;
+  branch: string | null;
+}
+
+const clean = (v: string | null | undefined) => (v ?? "").trim();
+
+/**
+ * `salary_mode` is a Select (Bank / Cash / Cheque) in Frappe, but imported
+ * records carry it in mixed case — "BANK" and "Bank" both exist on the live
+ * site. They are one mode; fold to the Select's own spelling so the pay-mode
+ * card doesn't split bank-paid staff in two and the bank card counts all of
+ * them. Anything else is left as HR entered it.
+ */
+const SALARY_MODES = ["Bank", "Cash", "Cheque"];
+function normalizeSalaryMode(raw: string | null | undefined): string {
+  const v = clean(raw);
+  return SALARY_MODES.find((m) => m.toLowerCase() === v.toLowerCase()) ?? v;
 }
 
 /** `{ [field]: value, count: n }` from a grouped count query. */
@@ -85,6 +114,14 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
           "date_of_joining",
           "status",
           "image",
+          "gender",
+          "marital_status",
+          "salary_mode",
+          "bank_name",
+          "reason_for_leaving",
+          "relieving_date",
+          "date_of_birth",
+          "branch",
         ],
         orderBy: "date_of_joining desc",
         limit: 0,
@@ -136,6 +173,44 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
       optional("Gratuity report", fetchGratuityReport(), null as GratuityReport | null),
     ]);
 
+  // Per-employee statuses for the day the tiles describe. Depends on the
+  // resolved date, so it cannot join the batch above.
+  const attendanceRows = yesterday.date
+    ? await getList<{ employee: string; status: string | null }>("Attendance", {
+        fields: ["employee", "status"],
+        filters: [
+          ["attendance_date", "=", yesterday.date],
+          ["docstatus", "=", 1],
+        ],
+        limit: 0,
+      })
+    : [];
+
+  const attendanceByEmployee = new Map<string, string[]>();
+  for (const row of attendanceRows) {
+    const list = attendanceByEmployee.get(row.employee) ?? [];
+    list.push(clean(row.status));
+    attendanceByEmployee.set(row.employee, list);
+  }
+
+  const roster: HeadcountEmployee[] = rawEmployees.map((raw) => ({
+    id: raw.name,
+    name: clean(raw.employee_name) || raw.name,
+    photoUrl: frappeFileUrl(raw.image),
+    status: clean(raw.status),
+    department: clean(raw.department),
+    designation: clean(raw.designation),
+    gender: clean(raw.gender),
+    maritalStatus: clean(raw.marital_status),
+    salaryMode: normalizeSalaryMode(raw.salary_mode),
+    bankName: clean(raw.bank_name),
+    reasonForLeaving: clean(raw.reason_for_leaving),
+    dateOfJoining: clean(raw.date_of_joining),
+    relievingDate: clean(raw.relieving_date),
+    dateOfBirth: clean(raw.date_of_birth),
+    branch: clean(raw.branch),
+  }));
+
   const employees: Employee[] = rawEmployees.map((raw) => {
     const name = raw.employee_name?.trim() || raw.name;
     return {
@@ -166,6 +241,9 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     newHiresByMonth: buildNewHiresByMonth(joinDates),
     employees,
     gratuity,
+    roster,
+    attendanceDate: yesterday.date,
+    attendanceByEmployee,
   };
 }
 

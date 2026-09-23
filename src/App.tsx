@@ -7,7 +7,6 @@ import { AttendancePage } from "./pages/AttendancePage";
 import { PayrollPage } from "./pages/PayrollPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { GratuityReportPage } from "./pages/GratuityReportPage";
-import { HeadcountPage } from "./pages/HeadcountPage";
 import { LoansPage } from "./pages/LoansPage";
 import { ExpenseClaimsPage } from "./pages/ExpenseClaimsPage";
 
@@ -27,10 +26,11 @@ export default function App() {
           <Route path="/payroll" element={<PayrollPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/gratuity-report" element={<GratuityReportPage />} />
-          <Route path="/workforce" element={<HeadcountPage />} />
           <Route path="/loans" element={<LoansPage />} />
           <Route path="/expense-claims" element={<ExpenseClaimsPage />} />
-          <Route path="/headcount" element={<Navigate to="/workforce" replace />} />
+          {/* The Workforce page was folded into Employees; keep old links working. */}
+          <Route path="/workforce" element={<Navigate to="/employees" replace />} />
+          <Route path="/headcount" element={<Navigate to="/employees" replace />} />
         </Routes>
       ) : (
         <ConnectionError />

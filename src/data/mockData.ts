@@ -32,7 +32,6 @@ export interface Kpis {
   permanentEmployees: number;
   /** ATS card "Employee Type WIse": employment type DAILY WAGES, any status. */
   dailyWageEmployees: number;
-  onPayrollThisCycle: number;
   presentPct: number;
   /** Employees whose date of joining is in the last 7 days. */
   employeesDelta7d: number;
@@ -45,9 +44,12 @@ export interface Kpis {
  */
 export interface AttendancePoint {
   date: string;
-  /** `Present` without the late-entry flag, plus `Work From Home`. */
+  /** `Present` (late or not) plus `Work From Home` — the ATS "Total Present" card. */
   present: number;
-  /** `Present` with `late_entry = 1`. */
+  /**
+   * Rows with `late_entry = 1` on any status — the ATS "Late Entry" card.
+   * Overlaps the status bands, so it is NOT part of the stacked total.
+   */
   late: number;
   halfDay: number;
   /** `Absent` and `On Leave`. */
@@ -75,6 +77,10 @@ export interface PayrollMonthPoint {
   gross: number;
   deductions: number;
   slips: number;
+  /** Distinct employees with a submitted slip that month (not slip count). */
+  employeesPaid: number;
+  /** Paid amount and headcount split by employment type. */
+  byType: EmploymentTypePoint[];
   /** False for the current calendar month, whose runs are not all posted. */
   complete: boolean;
 }
@@ -101,6 +107,11 @@ export interface CheckIn {
   checkIn: string;
   checkOut: string | null;
   status: AttendanceStatus;
+  /**
+   * The HRMS `late_entry` flag, kept separately because ATS's "Late Entry"
+   * card counts it on any status — an Absent row can be flagged late too.
+   */
+  lateEntry: boolean;
   minutesLate: number;
 }
 
@@ -120,10 +131,14 @@ export interface WorkforceApiResponse {
   attendanceDaily: AttendancePoint[];
   attendanceWeekly: AttendancePoint[];
   attendanceMonthly: AttendancePoint[];
-  payrollByDepartment: PayrollDeptPoint[];
+  /** Twelve months, oldest first; the last entry is the current month. */
   payrollMonthly: PayrollMonthPoint[];
   payrollDeptMonthly: PayrollDeptMonthPoint[];
-  employmentTypeBreakdown: EmploymentTypePoint[];
+  /**
+   * The month pages open on: the current calendar month when it has any
+   * submitted slips, otherwise the latest month that does.
+   */
+  defaultPayrollMonth: string;
   /** The same day as `kpis.attendanceDate` — where the attendance log opens. */
   latestPostedDate: string | null;
   recentPayrollRuns: PayrollRun[];

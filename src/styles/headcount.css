@@ -1,47 +1,30 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap");
-
-/* Workforce Snapshot draws every colour from the site-wide palette in
-   theme.css, so red / green / gold match the other pages exactly and dark
-   mode comes for free. Plum is the one addition, for a fifth category. */
+/* Workforce Snapshot is a section of the Employees page, so it takes that
+   page's paper tones and type (the --emp-* tokens), falling back to the
+   site-wide ones. Data colours are the shared red / green / gold from
+   theme.css; plum is the one addition, for a fifth category. */
 
 .hc-page {
-  --hc-card: var(--surface);
-  --hc-card-2: var(--surface-recessed);
-  --hc-line: var(--border);
-  --hc-ink: var(--ink);
-  --hc-muted: var(--ink-muted);
-  --hc-muted-fill: var(--border);
+  --hc-card: var(--emp-paper-raised, var(--surface));
+  --hc-card-2: var(--emp-paper, var(--surface-recessed));
+  --hc-line: var(--emp-line, var(--border));
+  --hc-ink: var(--emp-ink, var(--ink));
+  --hc-muted: var(--emp-muted, var(--ink-muted));
+  --hc-muted-fill: var(--emp-line, var(--border));
 
   --hc-green: var(--data-green);
   --hc-indigo: var(--data-indigo);
   --hc-gold: var(--data-amber);
   --hc-red: var(--data-rust);
-  --hc-plum: #6a4d79;
-  --hc-slate: var(--ink-muted);
+  --hc-plum: var(--emp-plum, #6a4d79);
+  --hc-slate: var(--hc-muted);
 
-  --hc-radius: 14px;
-  --hc-shadow: var(--shadow-card);
-  --hc-font: "Manrope", "Segoe UI", sans-serif;
-  --hc-mono: "DM Mono", ui-monospace, monospace;
+  --hc-radius: 10px;
+  --hc-shadow: none;
+  --hc-font: var(--emp-font-body, "Segoe UI", sans-serif);
+  --hc-mono: var(--emp-font-mono, ui-monospace, monospace);
 
   font-family: var(--hc-font);
   color: var(--hc-ink);
-}
-
-:root[data-theme="dark"] .hc-page {
-  --hc-plum: #a888ba;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .hc-page {
-    --hc-plum: #a888ba;
-  }
-}
-
-.hc-page .page-head h1 {
-  font-family: var(--hc-font);
-  font-weight: 800;
-  letter-spacing: -0.02em;
 }
 
 /* ─────────────────────────────────────────────────────────── filter bar */
@@ -520,11 +503,18 @@ button.hc-ranked-row:hover,
   background: color-mix(in srgb, var(--hc-red) 14%, transparent);
 }
 
+.hc-count-neutral {
+  color: var(--hc-indigo);
+  background: color-mix(in srgb, var(--hc-indigo) 14%, transparent);
+}
+
 .hc-people {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 260px;
+  /* Fill whatever height the grid row gives the card (min 260px), scroll inside. */
+  flex: 1 1 0;
+  min-height: 260px;
   overflow-y: auto;
 }
 

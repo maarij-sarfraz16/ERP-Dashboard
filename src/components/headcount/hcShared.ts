@@ -1,4 +1,4 @@
-import type { HeadcountEmployee } from "../../api/headcountApi";
+import type { HeadcountEmployee } from "../../data/employeeData";
 
 export interface CountRow {
   /** Raw value used for filtering; `""` means the field was blank in Frappe. */
@@ -78,6 +78,23 @@ export function fmtPct(part: number, whole: number): string {
   // Keep near-0 and near-100 shares from rounding to a misleading 0% / 100%.
   const precise = (pct > 0 && pct < 1) || (pct > 99 && pct < 100);
   return `${precise ? pct.toFixed(1) : Math.round(pct)}%`;
+}
+
+/**
+ * Completed years from `fromIso` to `toIso` (birthday-style: the year only
+ * counts once the anniversary has passed). Null when `fromIso` is blank.
+ */
+export function yearsBetween(fromIso: string, toIso: string): number | null {
+  if (!fromIso) return null;
+  const from = new Date(`${fromIso}T00:00:00`);
+  const to = new Date(`${toIso}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+  let years = to.getFullYear() - from.getFullYear();
+  const beforeAnniversary =
+    to.getMonth() < from.getMonth() ||
+    (to.getMonth() === from.getMonth() && to.getDate() < from.getDate());
+  if (beforeAnniversary) years -= 1;
+  return years;
 }
 
 export function fmtDate(iso: string): string {

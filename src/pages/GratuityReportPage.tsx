@@ -1,4 +1,5 @@
 import "../styles/employees.css";
+import { PageLoader } from "../components/common/PageLoader";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { GratuityRecord } from "../data/employeeData";
@@ -91,7 +92,7 @@ export function GratuityReportPage() {
     return (
       <div className="employees-page">
         {head}
-        <p className="chart-sub">Loading gratuity report…</p>
+        <PageLoader message="Loading gratuity report…" />
       </div>
     );
   }

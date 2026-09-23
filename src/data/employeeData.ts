@@ -20,6 +20,31 @@ export interface Employee {
   status: EmployeeStatus;
 }
 
+/**
+ * One Employee record with the raw Frappe values the Workforce snapshot
+ * filters and counts on (status, pay mode, bank, exit reason, …). Built from
+ * the same roster read as `Employee`, so the two never disagree.
+ */
+export interface HeadcountEmployee {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  /** Raw Frappe values, trimmed; `""` where the field is blank. */
+  status: string;
+  department: string;
+  designation: string;
+  gender: string;
+  maritalStatus: string;
+  /** Folded to Frappe's Select spelling (Bank / Cash / Cheque); see normalizeSalaryMode. */
+  salaryMode: string;
+  bankName: string;
+  reasonForLeaving: string;
+  dateOfJoining: string;
+  relievingDate: string;
+  dateOfBirth: string;
+  branch: string;
+}
+
 export interface DepartmentHeadcount {
   department: string;
   count: number;
@@ -70,6 +95,62 @@ export interface GratuityReport {
   records: GratuityRecord[];
 }
 
+/**
+ * One payroll month of overtime, summed from submitted Salary Slips — the
+ * hours and rupees that were actually paid out, not merely logged.
+ */
+export interface OvertimeMonthPoint {
+  /** `"2026-08"`. */
+  key: string;
+  /** `"Aug"`. */
+  label: string;
+  /** Overtime hours on monthly-cycle (permanent) slips. */
+  permanentHours: number;
+  /** Overtime hours on semi-monthly (daily-wage) slips. */
+  dailyWageHours: number;
+  hours: number;
+  amount: number;
+  /** Everything paid that month (`rounded_total`), for the overtime share. */
+  paid: number;
+  /** False for the month still in progress. */
+  complete: boolean;
+}
+
+/** Overtime hours logged on submitted Attendance for one calendar day. */
+export interface OvertimeDayPoint {
+  date: string;
+  hours: number;
+  /** Attendance rows that carry any overtime that day. */
+  people: number;
+}
+
+export interface OvertimeDeptPoint {
+  /** Raw Frappe department name, e.g. `TRANSPORT - ATS`. */
+  id: string;
+  department: string;
+  hours: number;
+  amount: number;
+  people: number;
+}
+
+export interface OvertimeReport {
+  /** The payroll month the headline figures and department split describe. */
+  month: string;
+  hours: number;
+  amount: number;
+  /** Share of that month's paid salary that was overtime, 0–100. */
+  shareOfPaidPct: number;
+  /** Distinct employees whose slips that month carried overtime. */
+  employees: number;
+  /** Active employees with "Allow Overtime" ticked on their record. */
+  allowedActive: number;
+  /** Active headcount, so `allowedActive` can be shown as a share. */
+  totalActive: number;
+  monthly: OvertimeMonthPoint[];
+  daily: OvertimeDayPoint[];
+  byDepartment: OvertimeDeptPoint[];
+}
+
 export interface EmployeeApiResponse {
   totalActive: number;
   /** Employees whose date of joining is in the last 7 days. */
@@ -86,6 +167,19 @@ export interface EmployeeApiResponse {
   employees: Employee[];
   /** Null when the report could not be read — never substituted with estimates. */
   gratuity: GratuityReport | null;
+  /** The whole roster (every status), for the Workforce snapshot's filters. */
+  roster: HeadcountEmployee[];
+  /**
+   * The attendance day summarised in the snapshot: yesterday in the Frappe
+   * site's time zone, the same day `presenceDate` and the Overview tiles describe.
+   */
+  attendanceDate: string | null;
+  /**
+   * employee id → the `status` of each of their Attendance records on
+   * `attendanceDate`. Usually one, but someone who worked two shifts has two,
+   * and ATS counts both.
+   */
+  attendanceByEmployee: Map<string, string[]>;
 }
 
 /**

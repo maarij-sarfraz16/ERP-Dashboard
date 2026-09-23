@@ -17,18 +17,18 @@ export interface AttendanceDailyRow {
 }
 
 /**
- * Which field of `AttendancePoint` a row belongs to. Every ATS status maps to
- * exactly one band, so the bands add up to the record count ATS reports.
- * Lateness is not a `status` in HRMS — the `late_entry` flag carries it, and
- * it only splits Present (an Absent row can carry the flag too; it stays
- * absent).
+ * Which stacked band of `AttendancePoint` a row belongs to. Every ATS status
+ * maps to exactly one band, so the bands add up to the record count ATS
+ * reports. Lateness is deliberately NOT a band: the ATS "Late Entry" card
+ * counts the `late_entry` flag on any status, so a late row still belongs to
+ * its status band (Present stays Present, as on the "Total Present" card) and
+ * `late` is tallied on top by `foldByDate`.
  */
-export type AttendanceBand = "present" | "late" | "halfDay" | "absent" | "holiday";
+export type AttendanceBand = "present" | "halfDay" | "absent" | "holiday";
 
-export function attendanceBand(status: string | null, lateEntry: number | null): AttendanceBand {
+export function attendanceBand(status: string | null): AttendanceBand {
   switch ((status ?? "").toLowerCase()) {
     case "present":
-      return lateEntry ? "late" : "present";
     case "work from home":
       return "present";
     case "half day":
@@ -64,9 +64,11 @@ export function fetchDailyAttendance(sinceIso: string): Promise<AttendanceDailyR
 export function foldByDate(rows: AttendanceDailyRow[]): Map<string, AttendancePoint> {
   const byDate = new Map<string, AttendancePoint>();
   for (const row of rows) {
-    const band = attendanceBand(row.status, row.late_entry);
+    const count = toNumber(row.count);
     const point = byDate.get(row.attendance_date) ?? emptyAttendancePoint(row.attendance_date);
-    point[band] += toNumber(row.count);
+    point[attendanceBand(row.status)] += count;
+    // Same rows as the ATS "Late Entry" card: the flag, whatever the status.
+    if (row.late_entry) point.late += count;
     byDate.set(row.attendance_date, point);
   }
   return byDate;

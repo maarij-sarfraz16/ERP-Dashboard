@@ -1,14 +1,12 @@
-import "../styles/headcount.css";
+import "../../styles/headcount.css";
 import { useMemo, useState } from "react";
-import type { HeadcountEmployee } from "../api/headcountApi";
-import { cleanDepartment, isoDaysAgo, today } from "../api/frappeMappers";
-import { useHeadcountData } from "../hooks/useHeadcountData";
-import { PageHead } from "../components/common/PageHead";
-import { SplitMeter } from "../components/headcount/SplitMeter";
-import { RankedBars } from "../components/headcount/RankedBars";
-import { AttendanceRing } from "../components/headcount/AttendanceRing";
-import { PeopleList } from "../components/headcount/PeopleList";
-import { bankBreakdown, countBy, fmtDate, fmtInt, labelOf, NO_SALARY_MODE } from "../components/headcount/hcShared";
+import type { HeadcountEmployee } from "../../data/employeeData";
+import { cleanDepartment, isoDaysAgo, today } from "../../api/frappeMappers";
+import { SplitMeter } from "./SplitMeter";
+import { RankedBars } from "./RankedBars";
+import { AttendanceRing } from "./AttendanceRing";
+import { PeopleList } from "./PeopleList";
+import { bankBreakdown, countBy, fmtDate, fmtInt, labelOf, NO_SALARY_MODE, yearsBetween } from "./hcShared";
 
 /** `null` = "All". A string (possibly `""` for blank) = that exact value. */
 type Filter = string | null;
@@ -23,6 +21,9 @@ interface Filters {
 const NO_FILTERS: Filters = { status: null, department: null, reason: null, marital: null };
 
 const WINDOWS = [8, 30, 90];
+
+const SENIOR_AGE = 60;
+const LONG_SERVICE_YEARS = 20;
 
 const ALL = "__all__";
 const BLANK = "__blank__";
@@ -74,26 +75,35 @@ function inWindow(iso: string, from: string, to: string): boolean {
   return Boolean(iso) && iso >= from && iso <= to;
 }
 
-export function HeadcountPage() {
-  const { data, loading } = useHeadcountData();
+/**
+ * Status, pay mode, yesterday's attendance and joiners / leavers over the
+ * whole roster, with filters that apply to every card at once.
+ */
+export function WorkforceSnapshot({
+  employees,
+  attendanceDate,
+  attendanceByEmployee,
+}: {
+  employees: HeadcountEmployee[];
+  attendanceDate: string | null;
+  attendanceByEmployee: Map<string, string[]>;
+}) {
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [windowDays, setWindowDays] = useState(8);
+  const [windowDays, setWindowDays] = useState(90);
 
-  const employees = data?.employees;
-
-  const options = useMemo(() => {
-    const all = employees ?? [];
-    return {
-      status: distinct(all, (e) => e.status),
-      department: distinct(all, (e) => e.department),
-      reason: distinct(all, (e) => e.reasonForLeaving),
-      marital: distinct(all, (e) => e.maritalStatus),
-    };
-  }, [employees]);
+  const options = useMemo(
+    () => ({
+      status: distinct(employees, (e) => e.status),
+      department: distinct(employees, (e) => e.department),
+      reason: distinct(employees, (e) => e.reasonForLeaving),
+      marital: distinct(employees, (e) => e.maritalStatus),
+    }),
+    [employees],
+  );
 
   const filtered = useMemo(
     () =>
-      (employees ?? []).filter(
+      employees.filter(
         (e) =>
           (filters.status === null || e.status === filters.status) &&
           (filters.department === null || e.department === filters.department) &&
@@ -106,14 +116,13 @@ export function HeadcountPage() {
   const view = useMemo(() => {
     const to = today();
     const from = isoDaysAgo(windowDays);
-    const attendance = data?.attendanceByEmployee ?? new Map<string, string[]>();
 
     // Attendance records of the filtered roster, counted by their ATS status.
     // Employees with no record that day are counted apart, never as a status.
     const attendanceCounts = new Map<string, number>();
     let unmarked = 0;
     for (const e of filtered) {
-      const statuses = attendance.get(e.id);
+      const statuses = attendanceByEmployee.get(e.id);
       if (!statuses) {
         if (e.status === "Active") unmarked += 1;
         continue;
@@ -131,11 +140,26 @@ export function HeadcountPage() {
     // says. (The ATS main dashboard counts salary_mode over every Employee,
     // which is why its Cash/Bank totals run higher than these.)
     const onPayroll = filtered.filter((e) => e.status === "Active");
+
+    // Age and length of service are only meaningful for people still on the
+    // roster, so both senior cards count Active employees as of today.
+    const withAge = onPayroll
+      .map((e) => ({ e, years: yearsBetween(e.dateOfBirth, to) }))
+      .filter((r): r is { e: HeadcountEmployee; years: number } => r.years !== null);
+    const withService = onPayroll
+      .map((e) => ({ e, years: yearsBetween(e.dateOfJoining, to) }))
+      .filter((r): r is { e: HeadcountEmployee; years: number } => r.years !== null);
+
     return {
       status: countBy(filtered, (e) => e.status),
       salaryMode: countBy(onPayroll, (e) => e.salaryMode, (v) => v || NO_SALARY_MODE),
       bank: bankBreakdown(onPayroll),
       gender: countBy(filtered, (e) => e.gender),
+      branch: countBy(filtered, (e) => e.branch),
+      seniorByAge: withAge.filter((r) => r.years >= SENIOR_AGE).sort((a, b) => b.years - a.years),
+      seniorByService: withService
+        .filter((r) => r.years >= LONG_SERVICE_YEARS)
+        .sort((a, b) => b.years - a.years),
       attendance: attendanceRows,
       unmarked,
       joined: filtered
@@ -145,7 +169,7 @@ export function HeadcountPage() {
         .filter((e) => inWindow(e.relievingDate, from, to))
         .sort((a, b) => b.relievingDate.localeCompare(a.relievingDate)),
     };
-  }, [filtered, data, windowDays]);
+  }, [filtered, attendanceByEmployee, windowDays]);
 
   const set = <K extends keyof Filters>(key: K) => (value: Filter) =>
     setFilters((f) => ({ ...f, [key]: value }));
@@ -164,40 +188,14 @@ export function HeadcountPage() {
     .filter(Boolean)
     .join(" · ");
 
-  const head = (
-    <PageHead index="05 / 05" title="Workforce Snapshot" subtitle="Status, pay mode, attendance and movement — live from ATS HR" />
-  );
-
-  if (loading) {
-    return (
-      <div className="hc-page">
-        {head}
-        <p className="chart-sub">Loading workforce snapshot from HR…</p>
-      </div>
-    );
-  }
-
-  if (!data || !employees) {
-    return (
-      <div className="hc-page">
-        {head}
-        <div className="hc-card">
-          <div className="hc-empty">The employee roster could not be loaded, so no figures are shown.</div>
-        </div>
-      </div>
-    );
-  }
-
   // `attendanceDate` is "yesterday" as the Frappe site defines it, whatever
   // the browser's clock says — the same day the ATS main dashboard shows.
-  const attendanceLabel = data.attendanceDate
-    ? `Yesterday · ${fmtDate(data.attendanceDate)}`
+  const attendanceLabel = attendanceDate
+    ? `Yesterday · ${fmtDate(attendanceDate)}`
     : "No attendance date available";
 
   return (
     <div className="hc-page">
-      {head}
-
       <div className="hc-filterbar load-in">
         <FilterSelect label="Status" value={filters.status} options={options.status} onChange={set("status")} />
         <FilterSelect
@@ -318,6 +316,41 @@ export function HeadcountPage() {
             detailOf={(e) => e.reasonForLeaving}
             empty={`No one left in the last ${windowDays} days.`}
           />
+        </section>
+
+        {/* ── Senior employees by age / service + Branch headcount ─────── */}
+        <section className="hc-card hc-people-card load-in load-in-5">
+          <header>
+            <h2>Senior Employees (Age {SENIOR_AGE}+)</h2>
+            <span className="hc-count hc-count-neutral">{fmtInt(view.seniorByAge.length)}</span>
+          </header>
+          <PeopleList
+            people={view.seniorByAge.map((r) => r.e)}
+            dateOf={(e) => e.dateOfBirth}
+            detailOf={(e) => `${yearsBetween(e.dateOfBirth, today())} years old`}
+            empty={`No active employee is ${SENIOR_AGE} or older.`}
+          />
+        </section>
+
+        <section className="hc-card hc-people-card load-in load-in-5">
+          <header>
+            <h2>Senior Employees (Service {LONG_SERVICE_YEARS}+ years)</h2>
+            <span className="hc-count hc-count-neutral">{fmtInt(view.seniorByService.length)}</span>
+          </header>
+          <PeopleList
+            people={view.seniorByService.map((r) => r.e)}
+            dateOf={(e) => e.dateOfJoining}
+            detailOf={(e) => `${yearsBetween(e.dateOfJoining, today())} years of service`}
+            empty={`No active employee has served ${LONG_SERVICE_YEARS} years yet.`}
+          />
+        </section>
+
+        <section className="hc-card hc-span-2 load-in load-in-5">
+          <header>
+            <h2>Branch Wise Head Count ({statusLabel})</h2>
+            <span className="hc-tag">Branch</span>
+          </header>
+          <RankedBars rows={view.branch} initial={view.branch.length} color="var(--hc-plum)" />
         </section>
       </div>
     </div>

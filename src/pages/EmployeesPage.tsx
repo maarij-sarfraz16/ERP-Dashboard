@@ -1,4 +1,5 @@
 import "../styles/employees.css";
+import { PageLoader } from "../components/common/PageLoader";
 import { useEmployeeData } from "../hooks/useEmployeeData";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
@@ -9,6 +10,7 @@ import { EmploymentSplitBars } from "../components/employees/EmploymentSplitBars
 import { NewHiresStrip } from "../components/employees/NewHiresStrip";
 import { DesignationBars } from "../components/employees/DesignationBars";
 import { GratuityPanel } from "../components/employees/GratuityPanel";
+import { WorkforceSnapshot } from "../components/headcount/WorkforceSnapshot";
 
 export function EmployeesPage() {
   const { data, loading } = useEmployeeData();
@@ -17,7 +19,7 @@ export function EmployeesPage() {
     return (
       <div className="employees-page">
         <PageHead index="04 / 04" title="Employees" subtitle="Headcount and employee directory" />
-        <p className="chart-sub">Loading employee data…</p>
+        <PageLoader message="Loading employee data…" />
       </div>
     );
   }
@@ -72,6 +74,13 @@ export function EmployeesPage() {
           </div>
         </div>
       </div>
+
+      <SectionHeader index="03" title="Workforce snapshot" />
+      <WorkforceSnapshot
+        employees={data.roster}
+        attendanceDate={data.attendanceDate}
+        attendanceByEmployee={data.attendanceByEmployee}
+      />
     </div>
   );
 }

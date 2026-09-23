@@ -1,5 +1,6 @@
 // payroll.css supplies the shared segmented control and select styling.
 import "../styles/payroll.css";
+import { PageLoader } from "../components/common/PageLoader";
 import "../styles/loans.css";
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import type { LoanSummaryCard } from "../data/loanData";
@@ -64,6 +65,15 @@ export function LoansPage() {
     () => [...new Set((records ?? []).map((r) => r.department))].sort(),
     [records],
   );
+  // The report's chart only carries employee names; look their IDs up from the rows.
+  const employeeIdsByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of records ?? []) {
+      const key = r.employeeName.trim().toUpperCase();
+      if (!map.has(key)) map.set(key, r.employee);
+    }
+    return map;
+  }, [records]);
   const sources = useMemo(
     () => [...new Set((records ?? []).map((r) => r.loanSource).filter(Boolean))].sort(),
     [records],
@@ -149,13 +159,13 @@ export function LoansPage() {
   const closeDrawer = useCallback(() => setOpenLoan(null), []);
   const openRecord = openLoan ? (records ?? []).find((r) => r.loan === openLoan) ?? null : null;
 
-  const head = <PageHead index="06 / 06" title="Loans" subtitle="Employee loans, repayments and outstanding balances — ATS Synthetic" />;
+  const head = <PageHead index="05 / 06" title="Loans" subtitle="Employee loans, repayments and outstanding balances — ATS Synthetic" />;
 
   if (loading) {
     return (
       <div className="ln-page">
         {head}
-        <p className="chart-sub">Running the HR Loan Summary report… this takes around ten seconds on this site.</p>
+        <PageLoader message="Loading loan summary…" />
       </div>
     );
   }
@@ -240,7 +250,7 @@ export function LoansPage() {
                 </div>
               </div>
               {chart ? (
-                <TopBalancesChart chart={chart} />
+                <TopBalancesChart chart={chart} employeeIds={employeeIdsByName} />
               ) : (
                 <p className="chart-sub">The report returned no chart.</p>
               )}

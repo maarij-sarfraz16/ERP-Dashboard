@@ -6,9 +6,8 @@ const NAV_ITEMS = [
   { to: "/attendance", index: "02", label: "Attendance" },
   { to: "/payroll", index: "03", label: "Payroll" },
   { to: "/employees", index: "04", label: "Employees" },
-  { to: "/workforce", index: "05", label: "Workforce" },
-  { to: "/loans", index: "06", label: "Loans" },
-  { to: "/expense-claims", index: "07", label: "Expense Claims" },
+  { to: "/loans", index: "05", label: "Loans" },
+  { to: "/expense-claims", index: "06", label: "Expense Claims" },
 ];
 
 export function Sidebar() {
