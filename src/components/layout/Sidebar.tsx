@@ -10,7 +10,12 @@ const NAV_ITEMS = [
   { to: "/expense-claims", index: "06", label: "Expense Claims" },
 ];
 
-export function Sidebar() {
+interface Props {
+  user: string;
+  onSignOut: () => void;
+}
+
+export function Sidebar({ user, onSignOut }: Props) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -47,6 +52,13 @@ export function Sidebar() {
           aria-label="Toggle dark mode"
         >
           <span className="theme-toggle-dot" />
+        </button>
+      </div>
+
+      <div className="sidebar-user">
+        <span className="brand-sub">{user}</span>
+        <button type="button" className="sign-out" onClick={onSignOut}>
+          Sign out
         </button>
       </div>
     </aside>

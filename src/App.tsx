@@ -9,15 +9,21 @@ import { EmployeesPage } from "./pages/EmployeesPage";
 import { GratuityReportPage } from "./pages/GratuityReportPage";
 import { LoansPage } from "./pages/LoansPage";
 import { ExpenseClaimsPage } from "./pages/ExpenseClaimsPage";
+import { LoginPage } from "./pages/LoginPage";
+import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
+  const { user, signIn, signOut } = useAuth();
+
   // Pages render their own loading state; when a fetch fails against the
   // Frappe backend the shared connection store flips and the whole shell
   // swaps to one explanatory error screen instead of a stuck spinner.
   const { ok } = useConnectionState();
 
+  if (!user) return <LoginPage onSignIn={signIn} />;
+
   return (
-    <AppShell>
+    <AppShell user={user} onSignOut={signOut}>
       {ok ? (
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />

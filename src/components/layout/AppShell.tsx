@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 
-export function AppShell({ children }: { children: ReactNode }) {
+interface Props {
+  children: ReactNode;
+  user: string;
+  onSignOut: () => void;
+}
+
+export function AppShell({ children, user, onSignOut }: Props) {
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar user={user} onSignOut={onSignOut} />
       <main className="main">{children}</main>
     </div>
   );
