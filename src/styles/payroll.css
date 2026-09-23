@@ -1,0 +1,345 @@
+/* Payroll page. Every colour comes from theme.css, so dark mode follows the
+   site-wide tokens; `--py-accent` is set per tile/card to the staff group's
+   series colour. */
+
+.py-page {
+  --py-radius: 10px;
+}
+
+.py-page .card {
+  border-radius: var(--py-radius);
+}
+
+/* ─────────────────────────────────────────────────────────── stat tiles */
+
+.py-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.py-stat {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--py-radius);
+  padding: 16px 18px 14px 20px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.py-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--py-accent);
+}
+
+.py-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--py-accent) 9%, transparent) 0%,
+    transparent 55%
+  );
+  pointer-events: none;
+}
+
+.py-stat-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  letter-spacing: 0.02em;
+}
+
+.py-stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.py-stat-foot {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.py-stat-foot .py-delta {
+  white-space: normal;
+}
+
+.py-delta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* A payroll increase is not good or bad in itself, so the arrow carries the
+   direction and the colour stays neutral-ish. */
+.py-delta.up,
+.py-delta.down {
+  color: var(--ink);
+}
+
+.py-delta > span {
+  font-size: 9px;
+  margin-right: 1px;
+}
+
+/* ─────────────────────────────────────────────────────────── chart cards */
+
+.py-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.85fr;
+  gap: 14px;
+}
+
+.py-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.py-card[style*="--py-accent"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--py-accent);
+}
+
+.py-card-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-bottom: 2px;
+}
+
+.py-card-figure {
+  text-align: right;
+}
+
+.py-card-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.py-head-wrap {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.py-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.py-legend-line {
+  margin: -2px 0 6px;
+}
+
+.py-note {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.py-empty {
+  padding: 24px 4px;
+}
+
+.py-more {
+  align-self: center;
+  margin-top: 10px;
+  background: var(--surface-recessed);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font: 500 12px var(--font-mono);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.py-more:hover {
+  border-color: var(--border-strong);
+}
+
+/* ──────────────────────────────────────────────────────────── controls */
+
+.py-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background: var(--surface-recessed);
+  border: 1px solid var(--border);
+}
+
+.py-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: 500 12px var(--font-mono);
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.py-seg button:hover {
+  color: var(--ink);
+}
+
+.py-seg button.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 0 1px var(--border);
+}
+
+.py-seg-dot,
+.py-cycle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.py-seg-count {
+  font-size: 10.5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--ink);
+}
+
+.py-select {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-recessed);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.py-select > span {
+  padding: 6px 4px 6px 12px;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+}
+
+.py-select select {
+  appearance: none;
+  border: 0;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23889' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right 11px center;
+  color: var(--ink);
+  font: 500 12px var(--font-mono);
+  padding: 6px 28px 6px 4px;
+  cursor: pointer;
+}
+
+.py-select select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ─────────────────────────────────────────────────────────────── table */
+
+.py-table-wrap {
+  overflow-x: auto;
+}
+
+.py-table th.num,
+.py-table td.num {
+  text-align: right;
+}
+
+.py-table tbody tr {
+  transition: background 100ms;
+}
+
+.py-table tbody tr:hover td {
+  background: var(--surface-recessed);
+}
+
+.py-period {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.py-cycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.py-amount {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.py-amount-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-recessed);
+  overflow: hidden;
+}
+
+.py-amount-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────── responsive */
+
+@media (max-width: 1180px) {
+  .py-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .py-grid-3 > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 980px) {
+  .py-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .py-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .py-stats {
+    grid-template-columns: 1fr;
+  }
+}

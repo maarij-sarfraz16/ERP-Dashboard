@@ -1,6 +1,5 @@
-// Builds `WorkforceApiResponse` (the exact contract `useWorkforceData`
-// returned from mock data) out of Frappe HRMS doctypes: Employee, Attendance,
-// Salary Slip and Shift Type.
+// Builds `WorkforceApiResponse` out of Frappe HRMS doctypes: Employee,
+// Attendance and Salary Slip.
 //
 // Aggregation is pushed into Frappe with `group_by` + `count()`/`sum()` in the
 // `fields` list. On this site that turns 570k Attendance rows into ~1.5k
@@ -8,6 +7,7 @@
 
 import { getCount, getList, optional } from "./frappeClient";
 import {
+  emptyAttendancePoint,
   fetchDailyAttendance,
   foldByDate,
   latestCompleteDay,
@@ -16,6 +16,7 @@ import {
 } from "./attendanceCommon";
 import {
   classifyEmploymentType,
+  classifyPayrollCycle,
   cleanDepartment,
   isoDaysAgo,
   lastTwelveMonths,
@@ -27,35 +28,50 @@ import type {
   AttendancePoint,
   EmploymentTypePoint,
   Kpis,
+  PayrollDeptMonthPoint,
   PayrollDeptPoint,
+  PayrollMonthPoint,
   PayrollRun,
-  PayrollTrendPoint,
   WorkforceApiResponse,
 } from "../data/mockData";
+
+// Every payroll figure sums Salary Slip `rounded_total` over submitted slips
+// (docstatus 1). That is the field ATS relabels "Paid Salary" and the one its
+// own "Outgoing Salary" and "Department Wise Salary" charts sum. On monthly
+// slips it includes overtime, which `net_pay` does not, so `net_pay` would
+// understate permanent payroll by roughly a third.
+const PAID = "sum(rounded_total)";
+const SUBMITTED = ["docstatus", "=", 1];
 
 interface SalarySlipPeriodRow {
   start_date: string;
   end_date: string | null;
-  docstatus: number;
+  payroll_frequency: string | null;
   total: number | string;
   paid: number | string;
 }
 
-/** Payroll cost keyed by period start + department, for one year. */
+/** Payroll cost keyed by period start + department + pay cycle, for one year. */
 interface SalarySlipCostRow {
   start_date: string;
   department: string | null;
-  cost: number | string;
+  payroll_frequency: string | null;
+  paid: number | string;
+  gross: number | string;
+  deductions: number | string;
+  slips: number | string;
 }
 
 interface SalarySlipEmployeeRow {
   employee: string;
-  net_pay: number | string;
+  rounded_total: number | string;
   start_date: string;
 }
 
 const DAILY_WINDOW = 30;
-const RECENT_RUNS = 5;
+// Enough rows that each cycle filter on the payroll page still shows several
+// runs: the semi-monthly cycle produces two per month, the monthly one one.
+const RECENT_RUNS = 24;
 
 export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
   const yearAgo = isoDaysAgo(365);
@@ -89,28 +105,36 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
         fields: [
           "start_date",
           "end_date",
-          "docstatus",
-          "sum(net_pay) as total",
+          "payroll_frequency",
+          `${PAID} as total`,
           "count(name) as paid",
         ],
-        filters: [["docstatus", "<", 2]],
-        groupBy: "start_date, end_date, docstatus",
+        filters: [SUBMITTED],
+        groupBy: "start_date, end_date, payroll_frequency",
         orderBy: "start_date desc",
         limit: RECENT_RUNS,
       }),
       [] as SalarySlipPeriodRow[],
     ),
 
-    // Feeds both the 12-month trend and the department breakdown.
+    // Feeds the 12-month trend, the month-wise and the department breakdowns.
     optional(
       "Payroll costs",
       getList<SalarySlipCostRow>("Salary Slip", {
-        fields: ["start_date", "department", "sum(net_pay) as cost"],
+        fields: [
+          "start_date",
+          "department",
+          "payroll_frequency",
+          `${PAID} as paid`,
+          "sum(gross_pay) as gross",
+          "sum(total_deduction) as deductions",
+          "count(name) as slips",
+        ],
         filters: [
           ["start_date", ">=", monthStart(11)],
-          ["docstatus", "<", 2],
+          SUBMITTED,
         ],
-        groupBy: "start_date, department",
+        groupBy: "start_date, department, payroll_frequency",
         limit: 0,
       }),
       [] as SalarySlipCostRow[],
@@ -121,11 +145,8 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     optional(
       "Recent cycle slips",
       getList<SalarySlipEmployeeRow>("Salary Slip", {
-        fields: ["employee", "net_pay", "start_date"],
-        filters: [
-          ["start_date", ">=", monthStart(2)],
-          ["docstatus", "<", 2],
-        ],
+        fields: ["employee", "rounded_total", "start_date"],
+        filters: [["start_date", ">=", monthStart(2)], SUBMITTED],
         limit: 0,
       }),
       [] as SalarySlipEmployeeRow[],
@@ -145,8 +166,13 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
 
   const byDate = foldByDate(dailyAttendance);
   const lastPosted = latestCompleteDay(byDate, totalsByDate(dailyAttendance), totalEmployees);
-  // "Late" employees did turn up, so they count towards presence.
-  const presentToday = lastPosted ? lastPosted.present + lastPosted.late : 0;
+  // Same definitions as the ATS cards: Present counts `status = Present`
+  // (late or not), and late counts every `late_entry` row whatever its status.
+  const dayRows = lastPosted ? dailyAttendance.filter((r) => r.attendance_date === lastPosted.date) : [];
+  const countRows = (keep: (r: AttendanceDailyRow) => boolean) =>
+    dayRows.filter(keep).reduce((sum, r) => sum + toNumber(r.count), 0);
+  const presentToday = countRows((r) => r.status === "Present");
+  const lateToday = countRows((r) => Boolean(r.late_entry));
 
   // The current calendar month is mid-cycle, so payroll figures are scoped to
   // the last complete month instead.
@@ -158,9 +184,11 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
 
   const kpis: Kpis = {
     totalEmployees,
+    attendanceDate: lastPosted?.date ?? null,
     presentToday,
-    absentToday: lastPosted?.absent ?? 0,
-    onPayrollThisCycle: paidEmployees.size || totalEmployees,
+    absentToday: countRows((r) => r.status === "Absent"),
+    lateToday,
+    onPayrollThisCycle: paidEmployees.size,
     presentPct: totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 1000) / 10 : 0,
     employeesDelta7d: newHires7d,
   };
@@ -171,7 +199,8 @@ export async function fetchWorkforceData(): Promise<WorkforceApiResponse> {
     attendanceWeekly: buildWeeklySeries(byDate),
     attendanceMonthly: buildMonthlySeries(byDate),
     payrollByDepartment: buildPayrollByDepartment(payrollCosts, payrollMonth),
-    payrollTrend: buildPayrollTrend(payrollCosts),
+    payrollMonthly: buildPayrollMonthly(payrollCosts),
+    payrollDeptMonthly: buildPayrollDeptMonthly(payrollCosts),
     employmentTypeBreakdown: buildEmploymentTypeBreakdown(monthSlips, employeeTypes),
     // The log page opens on this day; "today" is usually not posted yet.
     latestPostedDate: lastPosted?.date ?? null,
@@ -183,7 +212,7 @@ function buildDailySeries(byDate: Map<string, AttendancePoint>): AttendancePoint
   const series: AttendancePoint[] = [];
   for (let i = DAILY_WINDOW - 1; i >= 0; i--) {
     const date = isoDaysAgo(i);
-    series.push(byDate.get(date) ?? { date, present: 0, absent: 0, late: 0 });
+    series.push(byDate.get(date) ?? emptyAttendancePoint(date));
   }
   return series;
 }
@@ -192,13 +221,10 @@ function buildWeeklySeries(byDate: Map<string, AttendancePoint>): AttendancePoin
   const series: AttendancePoint[] = [];
   // 12 trailing 7-day buckets, oldest first — "Wk 1" is the oldest.
   for (let week = 11; week >= 0; week--) {
-    const point: AttendancePoint = { date: `Wk ${12 - week}`, present: 0, absent: 0, late: 0 };
+    const point = emptyAttendancePoint(`Wk ${12 - week}`);
     for (let day = 0; day < 7; day++) {
       const found = byDate.get(isoDaysAgo(week * 7 + day));
-      if (!found) continue;
-      point.present += found.present;
-      point.absent += found.absent;
-      point.late += found.late;
+      if (found) addInto(point, found);
     }
     series.push(point);
   }
@@ -209,21 +235,22 @@ function buildMonthlySeries(byDate: Map<string, AttendancePoint>): AttendancePoi
   const totals = new Map<string, AttendancePoint>();
   for (const [date, point] of byDate) {
     const key = monthKeyOf(date);
-    const running = totals.get(key) ?? { date: key, present: 0, absent: 0, late: 0 };
-    running.present += point.present;
-    running.absent += point.absent;
-    running.late += point.late;
+    const running = totals.get(key) ?? emptyAttendancePoint(key);
+    addInto(running, point);
     totals.set(key, running);
   }
-  return lastTwelveMonths().map(({ key, label }) => {
-    const found = totals.get(key);
-    return {
-      date: label,
-      present: found?.present ?? 0,
-      absent: found?.absent ?? 0,
-      late: found?.late ?? 0,
-    };
-  });
+  return lastTwelveMonths().map(({ key, label }) => ({
+    ...(totals.get(key) ?? emptyAttendancePoint(key)),
+    date: label,
+  }));
+}
+
+function addInto(target: AttendancePoint, source: AttendancePoint): void {
+  target.present += source.present;
+  target.late += source.late;
+  target.halfDay += source.halfDay;
+  target.absent += source.absent;
+  target.holiday += source.holiday;
 }
 
 /**
@@ -249,7 +276,7 @@ function latestCompleteMonth(rows: SalarySlipCostRow[]): string {
 }
 
 /**
- * Department cost for one month. Scoped to a single month on purpose: a wider
+ * Department paid salary for one month. Scoped to a single month on purpose: a wider
  * window would mix the two cycles unevenly and make departments look
  * arbitrarily more expensive than each other.
  */
@@ -261,7 +288,7 @@ function buildPayrollByDepartment(
   for (const row of rows) {
     if (monthKeyOf(row.start_date) !== month) continue;
     const department = cleanDepartment(row.department);
-    byDept.set(department, (byDept.get(department) ?? 0) + toNumber(row.cost));
+    byDept.set(department, (byDept.get(department) ?? 0) + toNumber(row.paid));
   }
 
   const points = [...byDept.entries()]
@@ -271,24 +298,64 @@ function buildPayrollByDepartment(
   return points.length ? points : [{ department: "No payroll data", cost: 0 }];
 }
 
-function buildPayrollTrend(rows: SalarySlipCostRow[]): PayrollTrendPoint[] {
-  const byMonth = new Map<string, number>();
+function buildPayrollMonthly(rows: SalarySlipCostRow[]): PayrollMonthPoint[] {
+  const byMonth = new Map<string, Omit<PayrollMonthPoint, "key" | "period" | "complete">>();
   for (const row of rows) {
     if (!row.start_date) continue;
     const key = monthKeyOf(row.start_date);
-    byMonth.set(key, (byMonth.get(key) ?? 0) + toNumber(row.cost));
+    const m = byMonth.get(key) ?? {
+      permanent: 0,
+      dailyWage: 0,
+      paid: 0,
+      gross: 0,
+      deductions: 0,
+      slips: 0,
+    };
+    const paid = toNumber(row.paid);
+    if (classifyPayrollCycle(row.payroll_frequency) === "Daily Wage") m.dailyWage += paid;
+    else m.permanent += paid;
+    m.paid += paid;
+    m.gross += toNumber(row.gross);
+    m.deductions += toNumber(row.deductions);
+    m.slips += toNumber(row.slips);
+    byMonth.set(key, m);
   }
+
+  const currentMonth = monthKeyOf(monthStart(0));
   const series = lastTwelveMonths().map(({ key, label }) => ({
+    key,
     period: label,
-    amount: toNumber(byMonth.get(key)),
+    permanent: 0,
+    dailyWage: 0,
+    paid: 0,
+    gross: 0,
+    deductions: 0,
+    slips: 0,
+    ...byMonth.get(key),
+    complete: key !== currentMonth,
   }));
 
-  // Drop leading months with no payroll at all. Payroll only went live partway
-  // through this window, and `PayrollPage` derives its growth figure from
-  // `series[0].amount` — leaving a zero there yields a division by zero and an
-  // "Infinity%" headline.
-  const firstWithData = series.findIndex((p) => p.amount > 0);
+  // Drop leading months with no payroll at all — payroll only went live
+  // partway through this window, and `PayrollPage` computes month-on-month
+  // change, which a leading zero would turn into "Infinity%".
+  const firstWithData = series.findIndex((p) => p.paid > 0);
   return firstWithData > 0 ? series.slice(firstWithData) : series;
+}
+
+function buildPayrollDeptMonthly(rows: SalarySlipCostRow[]): PayrollDeptMonthPoint[] {
+  const byKey = new Map<string, PayrollDeptMonthPoint>();
+  for (const row of rows) {
+    if (!row.start_date) continue;
+    const month = monthKeyOf(row.start_date);
+    const department = cleanDepartment(row.department);
+    const key = `${month}|${department}`;
+    const point = byKey.get(key) ?? { month, department, permanent: 0, dailyWage: 0 };
+    const paid = toNumber(row.paid);
+    if (classifyPayrollCycle(row.payroll_frequency) === "Daily Wage") point.dailyWage += paid;
+    else point.permanent += paid;
+    byKey.set(key, point);
+  }
+  return [...byKey.values()];
 }
 
 function buildEmploymentTypeBreakdown(
@@ -312,16 +379,11 @@ function buildEmploymentTypeBreakdown(
 
   for (const slip of slips) {
     const type = typeOf.get(slip.employee) ?? "Permanent";
-    totals[type].amount += toNumber(slip.net_pay);
+    totals[type].amount += toNumber(slip.rounded_total);
     seen[type].add(slip.employee);
   }
   totals.Permanent.headcount = seen.Permanent.size;
   totals["Daily Wage"].headcount = seen["Daily Wage"].size;
-
-  // Fall back to roster headcount when nobody has been paid in this cycle yet.
-  if (slips.length === 0) {
-    for (const [, type] of typeOf) totals[type].headcount += 1;
-  }
 
   return [
     { type: "Permanent", ...totals.Permanent },
@@ -331,13 +393,14 @@ function buildEmploymentTypeBreakdown(
 
 function buildRecentPayrollRuns(rows: SalarySlipPeriodRow[]): PayrollRun[] {
   return rows.map((row) => ({
-    id: `${row.start_date}:${row.end_date ?? ""}:${row.docstatus}`,
+    id: `${row.start_date}:${row.end_date ?? ""}:${row.payroll_frequency ?? ""}`,
     period: formatPeriod(row.start_date, row.end_date),
     runDate: row.end_date ?? row.start_date,
     employeesPaid: toNumber(row.paid),
     totalAmount: toNumber(row.total),
-    // docstatus 0 = draft slips still being reviewed, 1 = submitted/paid.
-    status: row.docstatus === 1 ? "completed" : "processing",
+    // Only submitted slips are read, so every run listed is complete.
+    status: "completed",
+    cycle: classifyPayrollCycle(row.payroll_frequency),
   }));
 }
 

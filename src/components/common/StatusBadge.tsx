@@ -3,13 +3,17 @@ import type { AttendanceStatus, PayrollRunStatus } from "../../data/mockData";
 const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
   "on-time": "On time",
   late: "Late",
+  "half-day": "Half day",
   absent: "Absent",
+  holiday: "Holiday",
 };
 
 const ATTENDANCE_CLASS: Record<AttendanceStatus, string> = {
   "on-time": "good",
   late: "late",
+  "half-day": "processing",
   absent: "absent",
+  holiday: "pending",
 };
 
 export function AttendanceStatusBadge({ status }: { status: AttendanceStatus }) {

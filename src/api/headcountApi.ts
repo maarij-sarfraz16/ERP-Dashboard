@@ -29,8 +29,12 @@ export interface HeadcountData {
   employees: HeadcountEmployee[];
   /** The attendance day summarised — yesterday, or the latest posted day. */
   attendanceDate: string | null;
-  /** employee id → Attendance `status` on `attendanceDate`. */
-  attendanceByEmployee: Map<string, string>;
+  /**
+   * employee id → the `status` of each of their Attendance records on
+   * `attendanceDate`. Usually one, but someone who worked two shifts has two,
+   * and ATS counts both.
+   */
+  attendanceByEmployee: Map<string, string[]>;
 }
 
 interface RawEmployee {
@@ -63,7 +67,7 @@ async function pickAttendanceDate(): Promise<string | null> {
     filters: [
       ["attendance_date", ">=", isoDaysAgo(8)],
       ["attendance_date", "<=", yesterday],
-      ["docstatus", "<", 2],
+      ["docstatus", "=", 1],
     ],
     groupBy: "attendance_date",
     orderBy: "attendance_date desc",
@@ -103,14 +107,18 @@ export async function fetchHeadcountData(): Promise<HeadcountData> {
         fields: ["employee", "status"],
         filters: [
           ["attendance_date", "=", attendanceDate],
-          ["docstatus", "<", 2],
+          ["docstatus", "=", 1],
         ],
         limit: 0,
       })
     : [];
 
-  const attendanceByEmployee = new Map<string, string>();
-  for (const row of attendanceRows) attendanceByEmployee.set(row.employee, clean(row.status));
+  const attendanceByEmployee = new Map<string, string[]>();
+  for (const row of attendanceRows) {
+    const list = attendanceByEmployee.get(row.employee) ?? [];
+    list.push(clean(row.status));
+    attendanceByEmployee.set(row.employee, list);
+  }
 
   const employees: HeadcountEmployee[] = rawEmployees.map((raw) => ({
     id: raw.name,

@@ -106,15 +106,21 @@ export function HeadcountPage() {
   const view = useMemo(() => {
     const to = today();
     const from = isoDaysAgo(windowDays);
-    const attendance = data?.attendanceByEmployee ?? new Map<string, string>();
+    const attendance = data?.attendanceByEmployee ?? new Map<string, string[]>();
 
-    // Attendance for the filtered roster. Active employees with no record that
-    // day are shown as "Not marked" rather than silently dropped.
+    // Attendance records of the filtered roster, counted by their ATS status.
+    // Employees with no record that day are counted apart, never as a status.
     const attendanceCounts = new Map<string, number>();
+    let unmarked = 0;
     for (const e of filtered) {
-      const status = attendance.get(e.id) ?? (e.status === "Active" ? "Not marked" : null);
-      if (!status) continue;
-      attendanceCounts.set(status, (attendanceCounts.get(status) ?? 0) + 1);
+      const statuses = attendance.get(e.id);
+      if (!statuses) {
+        if (e.status === "Active") unmarked += 1;
+        continue;
+      }
+      for (const status of statuses) {
+        attendanceCounts.set(status, (attendanceCounts.get(status) ?? 0) + 1);
+      }
     }
     const attendanceRows = [...attendanceCounts.entries()]
       .map(([key, count]) => ({ key, label: key, count }))
@@ -126,6 +132,7 @@ export function HeadcountPage() {
       bank: countBy(filtered, (e) => e.bankName),
       gender: countBy(filtered, (e) => e.gender),
       attendance: attendanceRows,
+      unmarked,
       joined: filtered
         .filter((e) => inWindow(e.dateOfJoining, from, to))
         .sort((a, b) => b.dateOfJoining.localeCompare(a.dateOfJoining)),
@@ -152,14 +159,14 @@ export function HeadcountPage() {
     .join(" · ");
 
   const head = (
-    <PageHead index="05 / 05" title="Workforce Snapshot" subtitle="Status, pay mode, attendance and movement — live from ATS ERPNext" />
+    <PageHead index="05 / 05" title="Workforce Snapshot" subtitle="Status, pay mode, attendance and movement — live from ATS HR" />
   );
 
   if (loading) {
     return (
       <div className="hc-page">
         {head}
-        <p className="chart-sub">Loading workforce snapshot from ERPNext…</p>
+        <p className="chart-sub">Loading workforce snapshot from HR…</p>
       </div>
     );
   }
@@ -273,6 +280,12 @@ export function HeadcountPage() {
             <span className="hc-tag">{attendanceLabel}</span>
           </header>
           <AttendanceRing rows={view.attendance} dateLabel={attendanceLabel} />
+          {view.unmarked > 0 && (
+            <p className="hc-hero-sub">
+              {fmtInt(view.unmarked)} active employee{view.unmarked === 1 ? " has" : "s have"} no
+              attendance record for this day.
+            </p>
+          )}
         </section>
 
         {/* ── New / Resigned ──────────────────────────────────────────── */}
@@ -303,7 +316,7 @@ export function HeadcountPage() {
       </div>
 
       <p className="hc-source">
-        Source: ERPNext Employee and Attendance records, read live. Blank fields are shown as “Not set”.
+        Source: HR Employee and Attendance records, read live. Blank fields are shown as “Not set”.
       </p>
     </div>
   );

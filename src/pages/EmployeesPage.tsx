@@ -30,10 +30,11 @@ export function EmployeesPage() {
 
       <EmployeeHero
         totalActive={data.totalActive}
-        activeDelta7d={data.activeDelta7d}
+        joinedLast7d={data.joinedLast7d}
         dailyWageCount={data.dailyWageCount}
         newHiresThisQuarter={data.newHiresThisQuarter}
         presentTodayPct={data.presentTodayPct}
+        presenceDate={data.presenceDate}
       />
 
       <SectionHeader index="01" title="Composition by department" />

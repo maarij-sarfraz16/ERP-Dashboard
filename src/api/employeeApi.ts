@@ -1,5 +1,5 @@
-// Builds `EmployeeApiResponse` (the exact contract `useEmployeeData` returned
-// from mock data) out of Frappe HRMS doctypes: Employee + Attendance.
+// Builds `EmployeeApiResponse` out of Frappe HRMS doctypes: Employee +
+// Attendance, plus the ATS gratuity report.
 // Per-employee sparkline marks live in `attendanceMarks.ts` — they depend on
 // a user-picked window, so they are fetched separately from the roster.
 
@@ -151,6 +151,7 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     totalsByDate(presenceRows),
     totalActive,
   );
+  // `status = Present`, late or not — the ATS "Total Present" definition.
   const presentOnLastPostedDay = lastPosted ? lastPosted.present + lastPosted.late : 0;
 
   const employees: Employee[] = rawEmployees.map((raw) => {
@@ -172,11 +173,12 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
 
   return {
     totalActive: totalActive || employees.filter((e) => e.status === "active").length,
-    activeDelta7d: newHiresLast7d,
+    joinedLast7d: newHiresLast7d,
     dailyWageCount: employmentTypeSplit.find((s) => s.type === "Daily Wage")?.count ?? 0,
     newHiresThisQuarter,
     presentTodayPct:
       totalActive > 0 ? Math.round((presentOnLastPostedDay / totalActive) * 100) : 0,
+    presenceDate: lastPosted?.date ?? null,
     headcountByDepartment: buildHeadcountByDepartment(deptCounts),
     headcountByDesignation: buildHeadcountByDesignation(employees),
     employmentTypeSplit,

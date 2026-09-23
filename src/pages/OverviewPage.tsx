@@ -4,11 +4,12 @@ import { useEmployeeData } from "../hooks/useEmployeeData";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
 import { KpiHero } from "../components/kpi/KpiHero";
+import { formatAttendanceDate } from "../components/kpi/formatAttendanceDate";
 import { KpiTile } from "../components/kpi/KpiTile";
 import { AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
 import { PayrollDeptChart } from "../components/charts/PayrollDeptChart";
 import { HeadcountMiniChart } from "../components/charts/HeadcountMiniChart";
-import { toChartSeries } from "../api/attendanceCommon";
+import { formatMonthKey } from "../components/payroll/payrollFormat";
 
 export function OverviewPage() {
   const { data, loading } = useWorkforceData();
@@ -23,7 +24,8 @@ export function OverviewPage() {
     );
   }
 
-  const { kpis, attendanceDaily, payrollByDepartment } = data;
+  const { kpis, attendanceDaily, payrollByDepartment, payrollMonthly } = data;
+  const payrollMonth = payrollMonthly.filter((m) => m.complete).at(-1)?.key;
 
   return (
     <>
@@ -35,14 +37,14 @@ export function OverviewPage() {
         <KpiTile
           label="TOTAL EMPLOYEES"
           value={kpis.totalEmployees.toLocaleString()}
-          footNote="active"
+          footNote="active · joined in last 7 days"
           delta={{ value: `${kpis.employeesDelta7d}`, direction: "up" }}
           animationClass="load-in-2"
         />
         <KpiTile
-          label="ABSENT TODAY"
-          value={kpis.absentToday.toString()}
-          footNote="across all shifts"
+          label={`ABSENT — ${formatAttendanceDate(kpis.attendanceDate).toUpperCase()}`}
+          value={kpis.absentToday.toLocaleString()}
+          footNote="attendance marked Absent, all shifts"
           variant="rust"
           animationClass="load-in-3"
         />
@@ -54,20 +56,22 @@ export function OverviewPage() {
           <div className="chart-card-head">
             <div>
               <div className="chart-title">Attendance</div>
-              <div className="chart-sub">Last 30 days</div>
+              <div className="chart-sub">Records by status, last 30 days</div>
             </div>
             <Link className="mini-chart-link" to="/attendance">
               View detail →
             </Link>
           </div>
-          <AttendanceStackedChart data={toChartSeries(attendanceDaily)} height={180} />
+          <AttendanceStackedChart data={attendanceDaily} height={180} />
         </div>
 
         <div className="card chart-card load-in load-in-3" style={{ minHeight: 240 }}>
           <div className="chart-card-head">
             <div>
               <div className="chart-title">Payroll</div>
-              <div className="chart-sub">Cost by department, Rs lakh</div>
+              <div className="chart-sub">
+                Paid salary by department{payrollMonth ? ` · ${formatMonthKey(payrollMonth)}` : ""}, Rs million
+              </div>
             </div>
             <Link className="mini-chart-link" to="/payroll">
               View detail →

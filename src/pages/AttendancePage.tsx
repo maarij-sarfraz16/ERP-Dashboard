@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useWorkforceData } from "../hooks/useWorkforceData";
 import { PageHead } from "../components/common/PageHead";
 import { SectionHeader } from "../components/common/SectionHeader";
-import { AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
+import { ATTENDANCE_SERIES, AttendanceStackedChart } from "../components/charts/AttendanceStackedChart";
 import { RangeToggle, type AttendanceRange } from "../components/attendance/RangeToggle";
 import { AttendanceLog } from "../components/attendance/AttendanceLog";
-import { toChartSeries } from "../api/attendanceCommon";
 
 export function AttendancePage() {
   const { data, loading } = useWorkforceData();
@@ -21,9 +20,9 @@ export function AttendancePage() {
   }
 
   const seriesByRange = {
-    daily: toChartSeries(data.attendanceDaily),
-    weekly: toChartSeries(data.attendanceWeekly),
-    monthly: toChartSeries(data.attendanceMonthly),
+    daily: data.attendanceDaily,
+    weekly: data.attendanceWeekly,
+    monthly: data.attendanceMonthly,
   };
 
   return (
@@ -36,24 +35,21 @@ export function AttendancePage() {
           <div>
             <div className="chart-title">Attendance trend</div>
             <div className="chart-sub">
-              {range === "daily" && "Last 30 days"}
-              {range === "weekly" && "Last 12 weeks"}
-              {range === "monthly" && "Last 12 months"}
+              Attendance records by status ·{" "}
+              {range === "daily" && "last 30 days"}
+              {range === "weekly" && "last 12 weeks"}
+              {range === "monthly" && "last 12 months"}
             </div>
           </div>
           <RangeToggle value={range} onChange={setRange} />
         </div>
         <AttendanceStackedChart data={seriesByRange[range]} height={300} />
         <div className="legend-row" style={{ marginTop: 12 }}>
-          <span className="legend-item">
-            <span className="legend-swatch" style={{ background: "var(--data-green)" }} /> Present
-          </span>
-          <span className="legend-item">
-            <span className="legend-swatch" style={{ background: "var(--data-amber)" }} /> Late
-          </span>
-          <span className="legend-item">
-            <span className="legend-swatch" style={{ background: "var(--data-rust)" }} /> Absent
-          </span>
+          {ATTENDANCE_SERIES.map((s) => (
+            <span className="legend-item" key={s.key}>
+              <span className="legend-swatch" style={{ background: s.color }} /> {s.label}
+            </span>
+          ))}
         </div>
       </div>
 

@@ -1,8 +1,5 @@
 import type { EmploymentTypePoint } from "../../data/mockData";
-
-function formatCurrency(v: number): string {
-  return `Rs ${(v / 100000).toFixed(1)}L`;
-}
+import { formatRs as formatCurrency } from "../payroll/payrollFormat";
 
 const COLORS: Record<string, string> = {
   Permanent: "var(--data-indigo)",
@@ -52,7 +49,7 @@ export function EmploymentTypeBar({ data }: { data: EmploymentTypePoint[] }) {
                 {formatCurrency(d.amount)}
               </div>
               <div className="chart-sub mono">
-                {((d.amount / total) * 100).toFixed(0)}%
+                {((d.amount / total) * 100).toFixed(2)}%
               </div>
             </div>
           </div>

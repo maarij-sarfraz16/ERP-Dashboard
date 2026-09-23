@@ -23,7 +23,7 @@ export function PresenceGauge({ presentPct, present, late, absent }: PresenceGau
   return (
     <div className="gauge-wrap">
       <div className="gauge-figure">
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={`${presentPct}% present today`}>
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={`${presentPct}% present`}>
           <circle
             cx={SIZE / 2}
             cy={SIZE / 2}
@@ -65,7 +65,7 @@ export function PresenceGauge({ presentPct, present, late, absent }: PresenceGau
         <div className="gauge-legend-row">
           <span className="gauge-dot" style={{ background: "var(--data-amber)" }} />
           <span className="gauge-legend-value mono">{late}</span>
-          <span className="gauge-legend-label">late</span>
+          <span className="gauge-legend-label">late entries</span>
         </div>
         <div className="gauge-legend-row">
           <span className="gauge-dot" style={{ background: "var(--data-rust)" }} />

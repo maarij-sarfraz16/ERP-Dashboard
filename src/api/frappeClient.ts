@@ -1,4 +1,4 @@
-// Single entry point for every call to the Frappe / ERPNext backend.
+// Single entry point for every call to the Frappe / HR backend.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // CORS — read this before debugging a failed request

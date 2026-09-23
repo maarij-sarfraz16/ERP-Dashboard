@@ -17,28 +17,32 @@ export interface AttendanceDailyRow {
 }
 
 /**
- * Which band of the stacked chart a row belongs to.
- *
- * `"excluded"` covers Holiday rows: HRMS writes an Attendance record for every
- * employee on a plant holiday (~58k of them here), and counting those as
- * absences would swamp the real absence signal.
+ * Which field of `AttendancePoint` a row belongs to. Every ATS status maps to
+ * exactly one band, so the bands add up to the record count ATS reports.
+ * Lateness is not a `status` in HRMS — the `late_entry` flag carries it, and
+ * it only splits Present (an Absent row can carry the flag too; it stays
+ * absent).
  */
-export type AttendanceBand = "present" | "late" | "absent" | "excluded";
+export type AttendanceBand = "present" | "late" | "halfDay" | "absent" | "holiday";
 
 export function attendanceBand(status: string | null, lateEntry: number | null): AttendanceBand {
   switch ((status ?? "").toLowerCase()) {
     case "present":
-    case "work from home":
-      // `status` never says "late" — the `late_entry` flag carries that.
       return lateEntry ? "late" : "present";
+    case "work from home":
+      return "present";
     case "half day":
-      return "late";
+      return "halfDay";
     case "holiday":
-      return "excluded";
+      return "holiday";
     default:
       // "Absent", "On Leave", and any site-specific status.
       return "absent";
   }
+}
+
+export function emptyAttendancePoint(date: string): AttendancePoint {
+  return { date, present: 0, late: 0, halfDay: 0, absent: 0, holiday: 0 };
 }
 
 /** One aggregate query covering everything the dashboard needs. */
@@ -47,8 +51,8 @@ export function fetchDailyAttendance(sinceIso: string): Promise<AttendanceDailyR
     fields: ["attendance_date", "status", "late_entry", "count(name) as count"],
     filters: [
       ["attendance_date", ">=", sinceIso],
-      // docstatus 2 = cancelled.
-      ["docstatus", "<", 2],
+      // Submitted records only, as ATS's own attendance cards and charts count.
+      ["docstatus", "=", 1],
     ],
     groupBy: "attendance_date, status, late_entry",
     orderBy: "attendance_date asc",
@@ -56,35 +60,19 @@ export function fetchDailyAttendance(sinceIso: string): Promise<AttendanceDailyR
   });
 }
 
-/**
- * Chart view of an attendance series: "present" is widened to everyone who
- * showed up (on time + late), while "late" stays as its own segment so the
- * breakdown remains visible. Absent is unchanged. The stacked total is
- * therefore intentionally larger than the raw headcount.
- */
-export function toChartSeries(points: AttendancePoint[]): AttendancePoint[] {
-  return points.map((p) => ({ ...p, present: p.present + p.late }));
-}
-
 /** Collapses the aggregate rows into one `AttendancePoint` per calendar date. */
 export function foldByDate(rows: AttendanceDailyRow[]): Map<string, AttendancePoint> {
   const byDate = new Map<string, AttendancePoint>();
   for (const row of rows) {
     const band = attendanceBand(row.status, row.late_entry);
-    if (band === "excluded") continue;
-    const point = byDate.get(row.attendance_date) ?? {
-      date: row.attendance_date,
-      present: 0,
-      absent: 0,
-      late: 0,
-    };
+    const point = byDate.get(row.attendance_date) ?? emptyAttendancePoint(row.attendance_date);
     point[band] += toNumber(row.count);
     byDate.set(row.attendance_date, point);
   }
   return byDate;
 }
 
-/** Total rows per date, Holiday included — used to judge completeness. */
+/** Total rows per date — used to judge completeness. */
 export function totalsByDate(rows: AttendanceDailyRow[]): Map<string, number> {
   const totals = new Map<string, number>();
   for (const row of rows) {

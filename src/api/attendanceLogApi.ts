@@ -6,7 +6,7 @@
 // re-querying Frappe on every chip click.
 
 import { getList, optional } from "./frappeClient";
-import { attendanceBand } from "./attendanceCommon";
+import { attendanceBand, type AttendanceBand } from "./attendanceCommon";
 import { cleanDepartment, formatClock, minutesSinceMidnight } from "./frappeMappers";
 import type { AttendanceStatus, CheckIn } from "../data/mockData";
 
@@ -66,12 +66,11 @@ export async function fetchAttendanceLog(date: string): Promise<AttendanceLog> {
   const [rows, shifts] = await Promise.all([
     getList<AttendanceDetailRow>("Attendance", {
       fields: DETAIL_FIELDS,
-      // Holiday rows carry no check-in times, so they would fill the table
-      // with placeholder dashes.
+      // Every submitted record for the day, Holiday included, so the log's
+      // row count matches the ATS Attendance list for that date.
       filters: [
         ["attendance_date", "=", date],
-        ["docstatus", "<", 2],
-        ["status", "!=", "Holiday"],
+        ["docstatus", "=", 1],
       ],
       orderBy: "employee_name asc",
       limit: 0,
@@ -81,6 +80,14 @@ export async function fetchAttendanceLog(date: string): Promise<AttendanceLog> {
   return { date, rows: toCheckIns(rows, shifts) };
 }
 
+const STATUS_OF_BAND: Record<AttendanceBand, AttendanceStatus> = {
+  present: "on-time",
+  late: "late",
+  halfDay: "half-day",
+  absent: "absent",
+  holiday: "holiday",
+};
+
 export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]): CheckIn[] {
   const shiftStart = new Map(shifts.map((s) => [s.name, minutesSinceMidnight(s.start_time)]));
   const shiftLabel = new Map(
@@ -88,9 +95,7 @@ export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]):
   );
 
   return rows.map((row) => {
-    const band = attendanceBand(row.status, row.late_entry);
-    const status: AttendanceStatus =
-      band === "absent" ? "absent" : band === "late" ? "late" : "on-time";
+    const status = STATUS_OF_BAND[attendanceBand(row.status, row.late_entry)];
 
     const start = row.shift ? shiftStart.get(row.shift) ?? null : null;
     const inMinutes = minutesSinceMidnight(row.in_time);
@@ -104,8 +109,8 @@ export function toCheckIns(rows: AttendanceDetailRow[], shifts: ShiftTypeRow[]):
       employeeName: row.employee_name?.trim() || row.employee,
       department: cleanDepartment(row.department),
       shift: (row.shift && shiftLabel.get(row.shift)) || row.shift || "—",
-      checkIn: status === "absent" ? "—" : formatClock(row.in_time),
-      checkOut: status === "absent" ? null : formatClock(row.out_time),
+      checkIn: formatClock(row.in_time),
+      checkOut: row.out_time ? formatClock(row.out_time) : null,
       status,
       minutesLate,
     };

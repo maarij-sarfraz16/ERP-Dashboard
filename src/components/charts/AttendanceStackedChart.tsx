@@ -10,6 +10,19 @@ import {
 import type { AttendancePoint } from "../../data/mockData";
 import { ChartTooltip } from "./ChartTooltip";
 
+/**
+ * One segment per ATS attendance status, bottom to top. The segments are
+ * disjoint, so a bar's height is the number of Attendance records for that
+ * day — the same figure as ATS's "Daily Attendance Trend" chart.
+ */
+export const ATTENDANCE_SERIES = [
+  { key: "present", label: "Present", color: "var(--data-green)" },
+  { key: "late", label: "Present, late entry", color: "var(--data-amber)" },
+  { key: "halfDay", label: "Half day", color: "var(--data-indigo)" },
+  { key: "absent", label: "Absent", color: "var(--data-rust)" },
+  { key: "holiday", label: "Holiday", color: "var(--border-strong)" },
+] as const satisfies readonly { key: keyof AttendancePoint; label: string; color: string }[];
+
 function formatLabel(raw: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const d = new Date(raw);
@@ -48,24 +61,28 @@ export function AttendanceStackedChart({
           cursor={{ fill: "var(--surface-recessed)" }}
           content={({ active, payload, label }) => {
             if (!active || !payload?.length) return null;
+            const point = payload[0].payload as AttendancePoint;
+            const total = ATTENDANCE_SERIES.reduce((sum, s) => sum + point[s.key], 0);
             return (
               <ChartTooltip
                 title={formatLabel(String(label))}
-                rows={payload
-                  .slice()
-                  .reverse()
-                  .map((p) => ({
-                    label: p.name === "present" ? "Present" : p.name === "late" ? "Late" : "Absent",
-                    value: String(p.value),
-                    color: p.color ?? "#fff",
-                  }))}
+                rows={[
+                  ...ATTENDANCE_SERIES.filter((s) => point[s.key] > 0)
+                    .reverse()
+                    .map((s) => ({
+                      label: s.label,
+                      value: point[s.key].toLocaleString(),
+                      color: s.color,
+                    })),
+                  { label: "Records", value: total.toLocaleString(), color: "var(--ink-on-accent)" },
+                ]}
               />
             );
           }}
         />
-        <Bar dataKey="present" stackId="a" fill="var(--data-green)" radius={0} />
-        <Bar dataKey="late" stackId="a" fill="var(--data-amber)" radius={0} />
-        <Bar dataKey="absent" stackId="a" fill="var(--data-rust)" radius={[3, 3, 0, 0]} />
+        {ATTENDANCE_SERIES.map((s) => (
+          <Bar key={s.key} dataKey={s.key} name={s.label} stackId="a" fill={s.color} />
+        ))}
       </BarChart>
     </ResponsiveContainer>
   );

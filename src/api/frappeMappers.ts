@@ -22,6 +22,17 @@ export function classifyEmploymentType(raw: string | null | undefined): Employme
     : "Permanent";
 }
 
+/**
+ * Salary Slip `payroll_frequency` → the staff group it pays. This site pays
+ * daily-wage staff semi-monthly ("Bimonthly" in HRMS: 1–15 and 16–31) and
+ * permanent staff monthly. The two line up with Employee.employment_type for
+ * all but a handful of slips, and unlike employment type the frequency sits on
+ * the slip itself, so payroll can be split without a per-employee join.
+ */
+export function classifyPayrollCycle(frequency: string | null | undefined): EmploymentType {
+  return /bimonthly|fortnight|week|daily/i.test(frequency ?? "") ? "Daily Wage" : "Permanent";
+}
+
 export function initialsOf(name: string): string {
   return name
     .split(/\s+/)

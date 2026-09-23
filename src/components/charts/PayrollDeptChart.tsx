@@ -10,10 +10,7 @@ import {
 } from "recharts";
 import type { PayrollDeptPoint } from "../../data/mockData";
 import { ChartTooltip } from "./ChartTooltip";
-
-function formatCurrency(v: number): string {
-  return `Rs ${(v / 100000).toFixed(1)}L`;
-}
+import { formatRs, formatRsTick } from "../payroll/payrollFormat";
 
 export function PayrollDeptChart({
   data,
@@ -35,7 +32,7 @@ export function PayrollDeptChart({
         <CartesianGrid horizontal={false} stroke="var(--border)" />
         <XAxis
           type="number"
-          tickFormatter={formatCurrency}
+          tickFormatter={formatRsTick}
           tick={{ fill: "var(--ink-muted)", fontSize: 10.5, fontFamily: "var(--font-mono)" }}
           axisLine={false}
           tickLine={false}
@@ -56,7 +53,7 @@ export function PayrollDeptChart({
             return (
               <ChartTooltip
                 title={point.department}
-                rows={[{ label: "Cost", value: formatCurrency(point.cost), color: "var(--data-indigo)" }]}
+                rows={[{ label: "Cost", value: formatRs(point.cost), color: "var(--data-indigo)" }]}
               />
             );
           }}

@@ -1,6 +1,6 @@
 # ATS Synthetic — workforce dashboard
 
-React + TypeScript + Vite front end for a Frappe / ERPNext (HRMS) backend.
+React + TypeScript + Vite front end for a Frappe / HR (HRMS) backend.
 
 ## Connecting to Frappe
 

@@ -11,11 +11,19 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "on-time", label: "On time" },
   { key: "late", label: "Late" },
+  { key: "half-day", label: "Half day" },
   { key: "absent", label: "Absent" },
+  { key: "holiday", label: "Holiday" },
 ];
 
 /** Absent first, then late, then on-time — the rows that need attention rise. */
-const STATUS_RANK: Record<AttendanceStatus, number> = { absent: 0, late: 1, "on-time": 2 };
+const STATUS_RANK: Record<AttendanceStatus, number> = {
+  absent: 0,
+  late: 1,
+  "half-day": 2,
+  "on-time": 3,
+  holiday: 4,
+};
 
 const PAGE_SIZE = 50;
 
@@ -69,7 +77,14 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
   }, [rows, query, department, shift]);
 
   const counts = useMemo(() => {
-    const c: Record<StatusFilter, number> = { all: scoped.length, "on-time": 0, late: 0, absent: 0 };
+    const c: Record<StatusFilter, number> = {
+      all: scoped.length,
+      "on-time": 0,
+      late: 0,
+      "half-day": 0,
+      absent: 0,
+      holiday: 0,
+    };
     for (const r of scoped) c[r.status] += 1;
     return c;
   }, [scoped]);
@@ -90,7 +105,7 @@ export function AttendanceLog({ initialDate }: { initialDate: string | null }) {
         );
         break;
       case "check-in":
-        // Absent rows have no time; push them to the bottom.
+        // Rows without a check-in time go to the bottom.
         sorted.sort((a, b) => {
           if (a.checkIn === "—" && b.checkIn !== "—") return 1;
           if (b.checkIn === "—" && a.checkIn !== "—") return -1;
