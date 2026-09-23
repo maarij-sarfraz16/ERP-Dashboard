@@ -16,7 +16,7 @@ export function KpiHero({ kpis }: { kpis: Kpis }) {
           absent={kpis.absentToday}
         />
         <p className="chart-sub">
-          {kpis.totalEmployees} employees on roster · updated live from shift terminals
+          {kpis.totalEmployees} employees · updated live from shift terminals
         </p>
       </div>
     </div>

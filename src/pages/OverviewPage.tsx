@@ -17,7 +17,7 @@ export function OverviewPage() {
   if (loading || employeeLoading || !data || !employeeData) {
     return (
       <>
-        <PageHead index="01 / 04" title="Overview" subtitle="Plant-wide snapshot" />
+        <PageHead index="01 / 04" title="Overview" subtitle="Summary" />
         <p className="chart-sub">Loading floor data…</p>
       </>
     );
@@ -27,7 +27,7 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHead index="01 / 04" title="Overview" subtitle="Plant-wide snapshot — ATS Synthetic" />
+      <PageHead index="01 / 04" title="Overview" subtitle="Summary — ATS Synthetic" />
 
       <SectionHeader index="01" title="Today at a glance" />
       <div className="bento">
@@ -35,7 +35,7 @@ export function OverviewPage() {
         <KpiTile
           label="TOTAL EMPLOYEES"
           value={kpis.totalEmployees.toLocaleString()}
-          footNote="on active roster"
+          footNote="active"
           delta={{ value: `${kpis.employeesDelta7d}`, direction: "up" }}
           animationClass="load-in-2"
         />

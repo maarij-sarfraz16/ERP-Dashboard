@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: "/attendance", index: "02", label: "Attendance" },
   { to: "/payroll", index: "03", label: "Payroll" },
   { to: "/employees", index: "04", label: "Employees" },
+  { to: "/workforce", index: "05", label: "Workforce" },
 ];
 
 export function Sidebar() {
@@ -35,7 +36,7 @@ export function Sidebar() {
 
       <div className="sidebar-footer">
         <span className="brand-sub">
-          {theme === "dark" ? "NIGHT SHIFT" : "DAY SHIFT"}
+          {theme === "dark" ? "Dark Mode" : "Light Mode"}
         </span>
         <button
           type="button"

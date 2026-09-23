@@ -5,6 +5,7 @@
 import type { EmploymentType } from "./mockData";
 
 export type EmployeeStatus = "active" | "on-leave" | "exited";
+/** One day on the directory sparkline. Fetched per window by `useAttendanceMarks`. */
 export type DayMark = "present" | "late" | "absent";
 
 export interface Employee {
@@ -18,11 +19,15 @@ export interface Employee {
   employmentType: EmploymentType;
   joinDate: string;
   status: EmployeeStatus;
-  attendance14d: DayMark[];
 }
 
 export interface DepartmentHeadcount {
   department: string;
+  count: number;
+}
+
+export interface DesignationHeadcount {
+  designation: string;
   count: number;
 }
 
@@ -36,6 +41,36 @@ export interface NewHirePoint {
   count: number;
 }
 
+/**
+ * One row of the ATS "Gratuity of Employee" script report, in PKR. Values are
+ * taken verbatim from the report — nothing here is estimated client-side.
+ */
+export interface GratuityRecord {
+  employeeId: string;
+  employeeName: string;
+  /** Raw Frappe department name, e.g. `ACCOUNTS - ATS`. */
+  department: string;
+  total: number;
+  consumed: number;
+  remaining: number;
+  /** As the report computes it (already rounded server-side). */
+  consumedPct: number;
+}
+
+/** The report's own Grand Total row — the figures ATS shows on its dashboard. */
+export interface GratuityTotals {
+  employees: number;
+  total: number;
+  consumed: number;
+  remaining: number;
+  consumedPct: number;
+}
+
+export interface GratuityReport {
+  totals: GratuityTotals;
+  records: GratuityRecord[];
+}
+
 export interface EmployeeApiResponse {
   totalActive: number;
   activeDelta7d: number;
@@ -43,9 +78,12 @@ export interface EmployeeApiResponse {
   newHiresThisQuarter: number;
   presentTodayPct: number;
   headcountByDepartment: DepartmentHeadcount[];
+  headcountByDesignation: DesignationHeadcount[];
   employmentTypeSplit: EmploymentSplitPoint[];
   newHiresByMonth: NewHirePoint[];
   employees: Employee[];
+  /** Null when the report could not be read — never substituted with estimates. */
+  gratuity: GratuityReport | null;
 }
 
 const DEPARTMENTS = ["IT", "Account", "Labour", "HR"];
@@ -85,17 +123,6 @@ function isoMonthsAgo(monthsAgo: number, dayOfMonth = 8): string {
   return d.toISOString().slice(0, 10);
 }
 
-function buildAttendance14d(seed: number, reliability: number): DayMark[] {
-  const marks: DayMark[] = [];
-  for (let i = 0; i < 14; i++) {
-    const roll = (Math.sin(seed * 7.13 + i * 2.7) + 1) / 2;
-    if (roll > reliability) marks.push("absent");
-    else if (roll > reliability - 0.08) marks.push("late");
-    else marks.push("present");
-  }
-  return marks;
-}
-
 function buildEmployees(): Employee[] {
   return NAMES.map((name, i) => {
     const department = DEPARTMENTS[i % DEPARTMENTS.length];
@@ -104,7 +131,6 @@ function buildEmployees(): Employee[] {
     const employmentType: EmploymentType = i % 5 === 0 ? "Daily Wage" : "Permanent";
     const status: EmployeeStatus = i % 13 === 0 ? "on-leave" : i % 19 === 0 ? "exited" : "active";
     const tenureMonths = 3 + ((i * 5) % 84);
-    const reliability = 0.82 + ((i * 3) % 15) / 100;
 
     return {
       id: `emp-${1000 + i}`,
@@ -116,7 +142,6 @@ function buildEmployees(): Employee[] {
       employmentType,
       joinDate: isoMonthsAgo(tenureMonths, 4 + (i % 24)),
       status,
-      attendance14d: buildAttendance14d(i, reliability),
     };
   });
 }
@@ -128,6 +153,23 @@ function buildHeadcountByDepartment(employees: Employee[]): DepartmentHeadcount[
     department,
     count: counts.get(department) ?? 0,
   })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Active headcount per designation, most common first. Shared with the real
+ * API mapper — the designation is only available on the roster rows, so both
+ * paths tally it client-side.
+ */
+export function buildHeadcountByDesignation(employees: Employee[]): DesignationHeadcount[] {
+  const counts = new Map<string, number>();
+  for (const e of employees) {
+    if (e.status !== "active") continue;
+    counts.set(e.role, (counts.get(e.role) ?? 0) + 1);
+  }
+  const rows = [...counts.entries()]
+    .map(([designation, count]) => ({ designation, count }))
+    .sort((a, b) => b.count - a.count || a.designation.localeCompare(b.designation));
+  return rows.length ? rows : [{ designation: "No data", count: 0 }];
 }
 
 function buildEmploymentTypeSplit(): EmploymentSplitPoint[] {
@@ -154,7 +196,10 @@ export const mockEmployeeData: EmployeeApiResponse = {
   newHiresThisQuarter: 14,
   presentTodayPct: 97,
   headcountByDepartment: buildHeadcountByDepartment(employees),
+  headcountByDesignation: buildHeadcountByDesignation(employees),
   employmentTypeSplit: buildEmploymentTypeSplit(),
   newHiresByMonth: buildNewHiresByMonth(),
   employees,
+  // Gratuity only ever comes from the live ATS report; no mock figures.
+  gratuity: null,
 };

@@ -1,8 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
-/* Employees gets its own visual identity — separate palette and type from
-   the rest of the app — while reusing the shared shell, PageHead and
-   SectionHeader components for structural consistency. */
+/* Employees keeps its own paper tones and type, but its data colours
+   (green / red / gold) are the shared ones from theme.css. */
 
 .employees-page {
   --emp-ink: #16211c;
@@ -12,15 +11,19 @@
   --emp-line-strong: #aab5a2;
   --emp-muted: #5b6a5c;
 
-  --emp-moss: #2f6d5c;
+  --emp-moss: var(--data-green);
   --emp-plum: #6a4d79;
-  --emp-coral: #d1476b;
-  --emp-gold: #b9862f;
+  --emp-coral: var(--data-rust);
+  --emp-gold: var(--data-amber);
 
-  --emp-moss-bg: rgba(47, 109, 92, 0.13);
+  --emp-moss-bg: var(--status-good-bg);
   --emp-plum-bg: rgba(106, 77, 121, 0.13);
-  --emp-coral-bg: rgba(209, 71, 107, 0.13);
-  --emp-gold-bg: rgba(185, 134, 47, 0.16);
+  --emp-coral-bg: var(--status-absent-bg);
+  --emp-gold-bg: var(--status-late-bg);
+
+  /* Green / red / gold come from theme.css so they match every other page. */
+  --emp-grat-remaining: var(--data-green);
+  --emp-grat-consumed: var(--data-amber);
 
   --emp-font-display: "Fraunces", "Georgia", serif;
   --emp-font-body: "Work Sans", "Segoe UI", sans-serif;
@@ -37,16 +40,8 @@
   --emp-line: #2c352d;
   --emp-line-strong: #46523f;
   --emp-muted: #9fac9c;
-
-  --emp-moss: #5fa38c;
   --emp-plum: #a888ba;
-  --emp-coral: #e58aa2;
-  --emp-gold: #d4a856;
-
-  --emp-moss-bg: rgba(95, 163, 140, 0.16);
   --emp-plum-bg: rgba(168, 136, 186, 0.16);
-  --emp-coral-bg: rgba(229, 138, 162, 0.16);
-  --emp-gold-bg: rgba(212, 168, 86, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,16 +52,8 @@
     --emp-line: #2c352d;
     --emp-line-strong: #46523f;
     --emp-muted: #9fac9c;
-
-    --emp-moss: #5fa38c;
     --emp-plum: #a888ba;
-    --emp-coral: #e58aa2;
-    --emp-gold: #d4a856;
-
-    --emp-moss-bg: rgba(95, 163, 140, 0.16);
     --emp-plum-bg: rgba(168, 136, 186, 0.16);
-    --emp-coral-bg: rgba(229, 138, 162, 0.16);
-    --emp-gold-bg: rgba(212, 168, 86, 0.18);
   }
 }
 
@@ -141,6 +128,54 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.emp-select {
+  font-family: var(--emp-font-body);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--emp-line);
+  background: var(--emp-paper-raised);
+  color: var(--emp-ink);
+}
+
+/* ---------------------------------------------- attendance window filter */
+
+.emp-range {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 14px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--emp-line);
+}
+
+.emp-range-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.emp-range-label {
+  font-family: var(--emp-font-mono);
+  font-size: 11px;
+  color: var(--emp-muted);
+}
+
+.emp-range-error {
+  font-size: 12.5px;
+  color: var(--emp-coral);
+  margin-bottom: 10px;
+}
+
+.emp-show-more {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--emp-line);
 }
 
 .emp-chip {
@@ -361,13 +396,23 @@
   margin-top: 1px;
 }
 
+.emp-row-main {
+  min-width: 0;
+}
+
+.emp-row-main .emp-spark {
+  margin-top: 6px;
+}
+
 .emp-row-tags {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   justify-self: end;
+  justify-content: flex-end;
   text-align: right;
+  white-space: nowrap;
 }
 
 .emp-status-tag {
@@ -403,6 +448,7 @@
   display: flex;
   gap: 3px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .emp-spark-dot {
@@ -448,8 +494,30 @@
 }
 
 .emp-split-fill {
+  display: block;
   height: 100%;
   border-radius: 999px;
+}
+
+/* Designation panel — one row per role, capped so long rosters scroll. */
+.emp-designation-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.emp-designation-fill {
+  /* Gold arrives early and coral gets a real band so even short bars read as a three-colour sweep. */
+  background-image: linear-gradient(90deg, var(--emp-moss) 0%, var(--emp-gold) 38%, var(--emp-coral) 82%, var(--emp-coral) 100%);
+  background-repeat: no-repeat;
+  background-position: left center;
+}
+
+.emp-designation-label {
+  width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .emp-split-count {
@@ -532,6 +600,7 @@
     justify-self: start;
     justify-content: flex-start;
     margin-top: 6px;
+    white-space: normal;
   }
 }
 
@@ -539,4 +608,361 @@
   .employees-page .load-in {
     animation: load-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
+}
+
+/* --------------------------------------------------------------- gratuity */
+
+.emp-grat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.emp-grat-stat-label,
+.emp-grat-bands-title {
+  font-family: var(--emp-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emp-muted);
+}
+
+/* Four stat tiles in a 2×2 grid, separated by hairlines. Wide enough for
+   exact, unrounded PKR amounts. */
+.emp-grat-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--emp-line);
+  border-radius: 8px;
+  background: var(--emp-paper);
+}
+
+.emp-grat-stat {
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.emp-grat-stat:nth-child(even) {
+  border-left: 1px solid var(--emp-line);
+}
+
+.emp-grat-stat:nth-child(n + 3) {
+  border-top: 1px solid var(--emp-line);
+}
+
+.emp-grat-stat-value {
+  font-family: var(--emp-font-display);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1.1;
+  margin-top: 6px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.emp-grat-stat-sub {
+  font-size: 11.5px;
+  color: var(--emp-muted);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Drawn vs still-owed balance bar. */
+.emp-grat-track {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.emp-grat-fill {
+  display: block;
+  height: 100%;
+  transition: width 260ms ease;
+}
+
+.emp-grat-fill.consumed {
+  background: var(--emp-grat-consumed);
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255, 255, 255, 0.3) 3px 4px);
+}
+
+.emp-grat-fill.remaining {
+  background: var(--emp-grat-remaining);
+}
+
+.emp-grat-balance-keys {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--emp-muted);
+}
+
+.emp-grat-key b {
+  font-family: var(--emp-font-mono);
+  font-weight: 600;
+  color: var(--emp-ink);
+  margin-left: 4px;
+}
+
+.emp-grat-key::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.emp-grat-key.consumed::before {
+  background: var(--emp-grat-consumed);
+  background-image: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255, 255, 255, 0.3) 3px 4px);
+}
+
+.emp-grat-key.remaining::before {
+  background: var(--emp-grat-remaining);
+}
+
+/* Per-tenure breakdown rows. */
+.emp-grat-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--emp-line);
+}
+
+.emp-grat-bands-title {
+  margin-bottom: 2px;
+}
+
+.emp-grat-band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  margin-bottom: 5px;
+}
+
+.emp-grat-band-label {
+  font-weight: 600;
+  color: var(--emp-ink);
+}
+
+.emp-grat-band-people {
+  color: var(--emp-muted);
+  font-size: 11.5px;
+}
+
+.emp-grat-band-value {
+  margin-left: auto;
+  font-family: var(--emp-font-mono);
+  font-size: 12px;
+  color: var(--emp-ink);
+}
+
+.emp-grat-band-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emp-grat-band-bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 4px;
+  transition: width 260ms ease;
+}
+
+.emp-grat-band-pct {
+  font-family: var(--emp-font-mono);
+  font-size: 11px;
+  color: var(--emp-muted);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.emp-grat-more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--emp-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.emp-grat-more:hover {
+  color: var(--emp-ink);
+}
+
+.emp-grat-note {
+  font-size: 11px;
+  color: var(--emp-muted);
+  padding-top: 10px;
+  border-top: 1px dashed var(--emp-line);
+}
+
+.emp-grat-details {
+  align-self: flex-start;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--emp-moss);
+  text-decoration: none;
+  padding: 7px 14px;
+  border: 1px solid var(--emp-line-strong);
+  border-radius: 999px;
+  transition: background 160ms ease;
+}
+
+.emp-grat-details:hover {
+  background: var(--emp-moss-bg);
+}
+
+/* ------------------------------------------------------- gratuity report */
+
+.emp-grat-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 8px 16px 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--emp-moss);
+  text-decoration: none;
+  border: 1px solid var(--emp-line-strong);
+  border-radius: 999px;
+  transition: background 160ms ease;
+}
+
+.emp-grat-back:hover {
+  background: var(--emp-moss-bg);
+}
+
+.emp-grat-back:focus-visible {
+  outline: 2px solid var(--emp-moss);
+  outline-offset: 2px;
+}
+
+.grat-report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.grat-report-stat {
+  padding: 18px 20px;
+  text-align: center;
+  border-left: 1px solid var(--emp-line);
+  min-width: 0;
+}
+
+.grat-report-stat:first-child {
+  border-left: none;
+}
+
+.grat-report-value {
+  font-family: var(--emp-font-display);
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grat-report-value.consumed {
+  color: var(--emp-grat-consumed);
+}
+
+.grat-report-value.remaining {
+  color: var(--emp-grat-remaining);
+}
+
+.grat-report-table-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--emp-line);
+  border-radius: 8px;
+}
+
+.grat-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.grat-report-table th,
+.grat-report-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--emp-line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.grat-report-table .num {
+  text-align: right;
+}
+
+.grat-report-table .muted {
+  color: var(--emp-muted);
+}
+
+.grat-report-table .name {
+  font-weight: 500;
+}
+
+.grat-report-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--emp-paper);
+  font-weight: 600;
+}
+
+.grat-report-table thead button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.grat-report-sort {
+  display: inline-block;
+  width: 1em;
+  font-size: 9px;
+  color: var(--emp-muted);
+  margin-left: 4px;
+}
+
+.grat-report-table tbody tr:hover {
+  background: var(--emp-moss-bg);
+}
+
+.grat-report-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--emp-paper);
+  font-weight: 700;
+  border-top: 1px solid var(--emp-line-strong);
+  border-bottom: none;
 }

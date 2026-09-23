@@ -1,5 +1,7 @@
 // Builds `EmployeeApiResponse` (the exact contract `useEmployeeData` returned
 // from mock data) out of Frappe HRMS doctypes: Employee + Attendance.
+// Per-employee sparkline marks live in `attendanceMarks.ts` — they depend on
+// a user-picked window, so they are fetched separately from the roster.
 
 import { frappeFileUrl, getCount, getList, optional } from "./frappeClient";
 import {
@@ -20,13 +22,15 @@ import {
   quarterStart,
   toNumber,
 } from "./frappeMappers";
+import { fetchGratuityReport } from "./gratuityApi";
+import { buildHeadcountByDesignation } from "../data/employeeData";
 import type {
-  DayMark,
   DepartmentHeadcount,
   Employee,
   EmployeeApiResponse,
   EmployeeStatus,
   EmploymentSplitPoint,
+  GratuityReport,
   NewHirePoint,
 } from "../data/employeeData";
 import type { EmploymentType } from "../data/mockData";
@@ -48,15 +52,6 @@ type RawGroupCount<K extends string> = { [P in K]: string | null } & {
   count: number | string;
 };
 
-interface RawAttendance {
-  employee: string;
-  attendance_date: string;
-  status: string | null;
-  late_entry: number | null;
-}
-
-const ATTENDANCE_WINDOW_DAYS = 14;
-
 function mapStatus(raw: string | null): EmployeeStatus {
   switch ((raw ?? "").toLowerCase()) {
     case "active":
@@ -70,51 +65,7 @@ function mapStatus(raw: string | null): EmployeeStatus {
   }
 }
 
-/**
- * Per-employee sparkline mark. Holiday rows are treated as "present" rather
- * than dropped, because the sparkline renders a fixed 14-cell strip and
- * colouring a plant holiday red would read as an absence.
- */
-function markFor(attendanceStatus: string | null, lateEntry: number | null): DayMark {
-  switch ((attendanceStatus ?? "").toLowerCase()) {
-    case "present":
-    case "work from home":
-      return lateEntry ? "late" : "present";
-    case "half day":
-      return "late";
-    case "holiday":
-      return "present";
-    default:
-      return "absent";
-  }
-}
-
-/** Last 14 calendar days, oldest first — the window the sparkline renders. */
-function attendanceWindow(): string[] {
-  const days: string[] = [];
-  for (let i = ATTENDANCE_WINDOW_DAYS - 1; i >= 0; i--) days.push(isoDaysAgo(i));
-  return days;
-}
-
-/**
- * Plant-wide attendance for the sparkline window. The directory lists every
- * employee, so there is nothing to scope this to — one date-bounded request
- * (~29k rows / 2.4MB, well under a second on the LAN) beats chunking ~2.3k ids
- * into `in` filters to dodge URI length limits.
- */
-function fetchAttendanceWindow(windowStart: string): Promise<RawAttendance[]> {
-  return getList<RawAttendance>("Attendance", {
-    fields: ["employee", "attendance_date", "status", "late_entry"],
-    filters: [
-      ["attendance_date", ">=", windowStart],
-      ["docstatus", "<", 2],
-    ],
-    limit: 0,
-  });
-}
-
 export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
-  const windowStart = isoDaysAgo(ATTENDANCE_WINDOW_DAYS - 1);
   const twelveMonthsAgo = isoDaysAgo(365);
 
   const [
@@ -124,9 +75,9 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     newHiresThisQuarter,
     presenceRows,
     joinDates,
-    attendanceRows,
     deptCounts,
     typeCounts,
+    gratuity,
   ] = await Promise.all([
       // The Employee read is required (not `optional`) — if it fails there is
       // no dashboard to draw. Fetched unpaged so the directory's department
@@ -168,7 +119,6 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
         }),
         [] as { date_of_joining: string | null }[],
       ),
-      optional("Attendance (14d)", fetchAttendanceWindow(windowStart), [] as RawAttendance[]),
       // Composition is counted server-side over the active roster so the bar
       // stays correct even if the directory read above partially fails.
       optional(
@@ -191,18 +141,10 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
         }),
         [] as RawGroupCount<"employment_type">[],
       ),
+      // Read straight from the ATS report. On failure the panel says so rather
+      // than showing estimated figures.
+      optional("Gratuity report", fetchGratuityReport(), null as GratuityReport | null),
     ]);
-
-  // employee id → { date → row }
-  const attendanceByEmployee = new Map<string, Map<string, RawAttendance>>();
-  for (const row of attendanceRows) {
-    let perDay = attendanceByEmployee.get(row.employee);
-    if (!perDay) {
-      perDay = new Map();
-      attendanceByEmployee.set(row.employee, perDay);
-    }
-    perDay.set(row.attendance_date, row);
-  }
 
   const lastPosted = latestCompleteDay(
     foldByDate(presenceRows),
@@ -211,10 +153,8 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
   );
   const presentOnLastPostedDay = lastPosted ? lastPosted.present + lastPosted.late : 0;
 
-  const days = attendanceWindow();
   const employees: Employee[] = rawEmployees.map((raw) => {
     const name = raw.employee_name?.trim() || raw.name;
-    const perDay = attendanceByEmployee.get(raw.name);
     return {
       id: raw.name,
       name,
@@ -225,12 +165,6 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
       employmentType: classifyEmploymentType(raw.employment_type),
       joinDate: raw.date_of_joining ?? "",
       status: mapStatus(raw.status),
-      // No Attendance row for a day means no record was submitted — rendered
-      // as "absent", the same way the sparkline treated missing days before.
-      attendance14d: days.map((day) => {
-        const row = perDay?.get(day);
-        return markFor(row?.status ?? null, row?.late_entry ?? null);
-      }) as DayMark[],
     };
   });
 
@@ -244,9 +178,11 @@ export async function fetchEmployeeData(): Promise<EmployeeApiResponse> {
     presentTodayPct:
       totalActive > 0 ? Math.round((presentOnLastPostedDay / totalActive) * 100) : 0,
     headcountByDepartment: buildHeadcountByDepartment(deptCounts),
+    headcountByDesignation: buildHeadcountByDesignation(employees),
     employmentTypeSplit,
     newHiresByMonth: buildNewHiresByMonth(joinDates),
     employees,
+    gratuity,
   };
 }
 

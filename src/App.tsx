@@ -6,6 +6,8 @@ import { OverviewPage } from "./pages/OverviewPage";
 import { AttendancePage } from "./pages/AttendancePage";
 import { PayrollPage } from "./pages/PayrollPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { GratuityReportPage } from "./pages/GratuityReportPage";
+import { HeadcountPage } from "./pages/HeadcountPage";
 
 export default function App() {
   // Pages render their own loading state; when a fetch fails against the
@@ -22,6 +24,9 @@ export default function App() {
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/payroll" element={<PayrollPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/gratuity-report" element={<GratuityReportPage />} />
+          <Route path="/workforce" element={<HeadcountPage />} />
+          <Route path="/headcount" element={<Navigate to="/workforce" replace />} />
         </Routes>
       ) : (
         <ConnectionError />

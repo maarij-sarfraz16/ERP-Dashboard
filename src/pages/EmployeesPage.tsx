@@ -7,7 +7,8 @@ import { DepartmentCompositionBar } from "../components/employees/DepartmentComp
 import { EmployeeDirectory } from "../components/employees/EmployeeDirectory";
 import { EmploymentSplitBars } from "../components/employees/EmploymentSplitBars";
 import { NewHiresStrip } from "../components/employees/NewHiresStrip";
-import { PresenceArc } from "../components/employees/PresenceArc";
+import { DesignationBars } from "../components/employees/DesignationBars";
+import { GratuityPanel } from "../components/employees/GratuityPanel";
 
 export function EmployeesPage() {
   const { data, loading } = useEmployeeData();
@@ -15,8 +16,8 @@ export function EmployeesPage() {
   if (loading || !data) {
     return (
       <div className="employees-page">
-        <PageHead index="04 / 04" title="Employees" subtitle="Workforce roster" />
-        <p className="chart-sub">Loading roster…</p>
+        <PageHead index="04 / 04" title="Employees" subtitle="Headcount and employee directory" />
+        <p className="chart-sub">Loading employee data…</p>
       </div>
     );
   }
@@ -25,7 +26,7 @@ export function EmployeesPage() {
 
   return (
     <div className="employees-page">
-      <PageHead index="04 / 04" title="Employees" subtitle="Workforce roster — ATS Synthetic" />
+      <PageHead index="04 / 04" title="Employees" subtitle="Headcount and employee directory — ATS Synthetic" />
 
       <EmployeeHero
         totalActive={data.totalActive}
@@ -56,9 +57,17 @@ export function EmployeesPage() {
           </div>
 
           <div className="emp-panel load-in">
-            <div className="emp-panel-title">Presence</div>
-            <div className="emp-panel-sub">Plant-wide today</div>
-            <PresenceArc pct={data.presentTodayPct} />
+            <div className="emp-panel-title">Designations</div>
+            <div className="emp-panel-sub">
+              Active headcount · {data.headcountByDesignation.length} roles
+            </div>
+            <DesignationBars data={data.headcountByDesignation} />
+          </div>
+
+          <div className="emp-panel load-in">
+            <div className="emp-panel-title">Gratuity</div>
+            <div className="emp-panel-sub">Total, consumed and remaining, as reported by ATS</div>
+            <GratuityPanel report={data.gratuity} />
           </div>
         </div>
       </div>
