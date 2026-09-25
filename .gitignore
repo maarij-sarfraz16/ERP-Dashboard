@@ -7,4 +7,4 @@ build/
 .env
 node_modules/
 dist/
-.claude/
+.claude
