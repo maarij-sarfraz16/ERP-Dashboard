@@ -15,7 +15,7 @@
 // Writes are refused outright (see ALLOWED_METHODS) — the dashboard is
 // read-only, so the relay is too.
 
-import { Readable } from "node:stream";
+import { Readable, pipeline } from "node:stream";
 import {
   COOKIE_NAME,
   INVALID_CREDENTIALS,
@@ -142,7 +142,10 @@ export function createApiMiddleware(env) {
           Authorization: `token ${apiKey}:${apiSecret}`,
           Accept: req.headers.accept ?? "application/json",
         },
-        signal: AbortSignal.timeout(60_000),
+        // Longer than the slowest client-side budget (90s for loan reports in
+        // src/api/loanApi.ts), so the browser gives up first with its own
+        // message. The signal also covers the body, not just the headers.
+        signal: AbortSignal.timeout(120_000),
       });
     } catch (err) {
       // The username is safe to log; nothing secret is.
@@ -165,7 +168,15 @@ export function createApiMiddleware(env) {
       return;
     }
     // Streamed rather than buffered, because employee photos come through here.
-    Readable.fromWeb(upstream.body).pipe(res);
+    // `pipeline` rather than `.pipe()`: a body that fails mid-stream (timeout,
+    // Frappe dropping the connection, the browser navigating away) must end
+    // this one response, not surface as an unhandled 'error' that kills the
+    // whole server.
+    pipeline(Readable.fromWeb(upstream.body), res, (err) => {
+      if (err && err.code !== "ERR_STREAM_PREMATURE_CLOSE") {
+        console.error(`[relay] ${user}: ${req.method} stream failed —`, err?.message ?? err);
+      }
+    });
   }
 
   /**
