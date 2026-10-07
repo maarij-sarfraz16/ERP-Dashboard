@@ -15,7 +15,7 @@ import bcrypt from "bcryptjs";
 
 /** bcrypt work factor. 12 is ~0.25s per attempt on current hardware. */
 const COST = 12;
-const MIN_LENGTH = 10;
+const MIN_LENGTH = 1;
 
 /**
  * One readline interface serves both prompts. Opening a second one on the same
